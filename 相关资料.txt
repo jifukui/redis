@@ -1,0 +1,5 @@
+（1）使用Redis的时候需要首先需要安装依赖的库，在deps文件夹下
+（2）设置deps整个文件夹下的文件的属性为777 chmod -R 777 deps
+（3）在deps文件夹下运行make  hiredis jemalloc linenoise lua
+（4）在编译hiredis可能会出错，需要将环境变量ARCH设置为空
+（5）在编译32位的设备的时候设置make 32bit
