@@ -620,9 +620,10 @@ unsigned int zipRawEntryLength(unsigned char *p)
 /**
  * entry
  * entrylen
- * v
- * encoding
- * 返回编码类型
+ * v：长整型数指针
+ * encoding：编码类型指针
+ * 将压缩列表中的数进行转化为长整型数并设置其编码类型
+ * 返回0表示失败，返回1表示成功
 */
 int zipTryEncoding(unsigned char *entry, unsigned int entrylen, long long *v, unsigned char *encoding) 
 {
@@ -1019,6 +1020,7 @@ unsigned char *__ziplistDelete(unsigned char *zl, unsigned char *p, unsigned int
 
         /* When nextdiff != 0, the raw length of the next entry has changed, so
          * we need to cascade the update throughout the ziplist */
+        /**调整压缩列表*/
         if (nextdiff != 0)
         {
             zl = __ziplistCascadeUpdate(zl,p);
@@ -1379,30 +1381,44 @@ unsigned char *ziplistPrev(unsigned char *zl, unsigned char *p)
  * on the encoding of the entry. '*sstr' is always set to NULL to be able
  * to find out whether the string pointer or the integer value was set.
  * Return 0 if 'p' points to the end of the ziplist, 1 otherwise. */
-/***/
+/**
+ * p：压缩列表
+ * sstr：对于是字符串指向字符串的起始位置
+ * slen：对于字符串指向字符串的长度
+ * sval：对于数字返回数值
+*/
 unsigned int ziplistGet(unsigned char *p, unsigned char **sstr, unsigned int *slen, long long *sval) 
 {
     zlentry entry;
+    /**对于压缩列表不存在且是尾部*/
     if (p == NULL || p[0] == ZIP_END) 
     {
         return 0;
     }
+    /**对于二级地址不为空的处理*/
     if (sstr) 
     {
         *sstr = NULL;
     }
-
+    /**从压缩字符串中提取实例*/
     zipEntry(p, &entry);
+    /**实例是字符串的处理*/
     if (ZIP_IS_STR(entry.encoding)) 
     {
+        /**如果二级指针存在
+         * 设置字符串长度为实例的长度
+         * 设置字符串内容指向实例的内内容部分
+        */
         if (sstr) 
         {
             *slen = entry.len;
             *sstr = p+entry.headersize;
         }
     } 
+    /**实例是数字的处理*/
     else 
-    {
+    {   
+        /**对于数值获取数值*/
         if (sval) 
         {
             *sval = zipLoadInteger(p+entry.headersize,entry.encoding);
@@ -1421,7 +1437,7 @@ unsigned char *ziplistInsert(unsigned char *zl, unsigned char *p, unsigned char 
 /* Delete a single entry from the ziplist, pointed to by *p.
  * Also update *p in place, to be able to iterate over the
  * ziplist, while deleting entries. */
-/***/
+/**从压缩列表中删除一个实例*/
 unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p) 
 {
     size_t offset = *p-zl;
@@ -1484,7 +1500,13 @@ unsigned int ziplistCompare(unsigned char *p, unsigned char *sstr, unsigned int 
 
 /* Find pointer to the entry equal to the specified entry. Skip 'skip' entries
  * between every comparison. Returns NULL when the field could not be found. */
-/***/
+/**
+ * p为压缩列表
+ * vstr：数据域的名称
+ * vlen：为数据域的长度
+ * skip：为跳过间隔
+ * 返回压缩列表指针，此过程中没有改变其值
+*/
 unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int vlen, unsigned int skip) 
 {
     int skipcnt = 0;
@@ -1499,24 +1521,31 @@ unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int v
         ZIP_DECODE_PREVLENSIZE(p, prevlensize);
         ZIP_DECODE_LENGTH(p + prevlensize, encoding, lensize, len);
         q = p + prevlensize + lensize;
-
+        /**对于skipcnt的值为0的处理*/
         if (skipcnt == 0) 
         {
             /* Compare current entry with specified entry */
+            /**对于压缩列表是字符串的处理*/
             if (ZIP_IS_STR(encoding)) 
             {
+                /**对于实例的长度等于需要获取的数据长度且q处的内容等于vstr的内容返回p*/
                 if (len == vlen && memcmp(q, vstr, vlen) == 0) 
                 {
                     return p;
                 }
             } 
+            /**对于数值的处理*/
             else 
             {
                 /* Find out if the searched field can be encoded. Note that
                  * we do it only the first time, once done vencoding is set
                  * to non-zero and vll is set to the integer value. */
+                /**应该只执行下面的内容*/
                 if (vencoding == 0) 
                 {
+                    /**根据传入的字符串转换为long long类型的数据以及编码类型
+                     * 对于编码失败的的处理
+                     */
                     if (!zipTryEncoding(vstr, vlen, &vll, &vencoding)) 
                     {
                         /* If the entry can't be encoded we set it to
@@ -1531,8 +1560,10 @@ unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int v
                 /* Compare current entry with specified entry, do it only
                  * if vencoding != UCHAR_MAX because if there is no encoding
                  * possible for the field it can't be a valid integer. */
+                /**对于转换成功的处理*/
                 if (vencoding != UCHAR_MAX) 
                 {
+                    /**得到整形数*/
                     long long ll = zipLoadInteger(q, encoding);
                     if (ll == vll) 
                     {
@@ -1542,6 +1573,7 @@ unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int v
             }
 
             /* Reset skip count */
+            /**设置查找数量*/
             skipcnt = skip;
         } 
         else 

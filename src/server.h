@@ -583,16 +583,26 @@ typedef struct RedisModuleDigest {
 /* Objects encoding. Some kind of objects like Strings and Hashes can be
  * internally represented in multiple ways. The 'encoding' field of the object
  * is set to one of this fields for this object. */
+/**定义原始编码*/
 #define OBJ_ENCODING_RAW 0     /* Raw representation */
+/**定义整数编码*/
 #define OBJ_ENCODING_INT 1     /* Encoded as integer */
+/**定义hash表*/
 #define OBJ_ENCODING_HT 2      /* Encoded as hash table */
+/**定义*/
 #define OBJ_ENCODING_ZIPMAP 3  /* Encoded as zipmap */
 #define OBJ_ENCODING_LINKEDLIST 4 /* No longer used: old list encoding. */
+/**定义压缩列表*/
 #define OBJ_ENCODING_ZIPLIST 5 /* Encoded as ziplist */
+/**定义整数集合*/
 #define OBJ_ENCODING_INTSET 6  /* Encoded as intset */
+/***/
 #define OBJ_ENCODING_SKIPLIST 7  /* Encoded as skiplist */
+/**定义嵌入动态字符串的编码*/
 #define OBJ_ENCODING_EMBSTR 8  /* Embedded sds string encoding */
+/***/
 #define OBJ_ENCODING_QUICKLIST 9 /* Encoded as linked list of ziplists */
+/***/
 #define OBJ_ENCODING_STREAM 10 /* Encoded as a radix tree of listpacks */
 
 #define LRU_BITS 24
@@ -641,7 +651,14 @@ typedef struct clientReplyBlock {
  * by integers from 0 (the default database) up to the max configured
  * database. The database number is the 'id' field in the structure. */
 /**数据库对象
- * 
+ * dict
+ * expires
+ * blocking_keys
+ * ready_keys
+ * watched_keys
+ * id
+ * avg_tt
+ * defrag_later
 */
 typedef struct redisDb {
     dict *dict;                 /* The keyspace for this DB */
@@ -1360,6 +1377,19 @@ typedef struct pubsubPattern {
 
 typedef void redisCommandProc(client *c);
 typedef int *redisGetKeysProc(struct redisCommand *cmd, robj **argv, int argc, int *numkeys);
+/**redis命令结构体
+ * name
+ * proc
+ * arity
+ * sflags
+ * flags
+ * getkeys_proc
+ * firstkey
+ * lastkey
+ * keystep
+ * microseconds
+ * calls
+*/
 struct redisCommand {
     char *name;
     redisCommandProc *proc;
@@ -1375,12 +1405,12 @@ struct redisCommand {
     int keystep;  /* The step between first and last key */
     long long microseconds, calls;
 };
-
+/**redis 功能*/
 struct redisFunctionSym {
     char *name;
     unsigned long pointer;
 };
-
+/**redis排序对象*/
 typedef struct _redisSortObject {
     robj *obj;
     union {
@@ -1388,13 +1418,14 @@ typedef struct _redisSortObject {
         robj *cmpobj;
     } u;
 } redisSortObject;
-
+/**redis排序操作*/
 typedef struct _redisSortOperation {
     int type;
     robj *pattern;
 } redisSortOperation;
 
 /* Structure to hold list iteration abstraction. */
+/**链表类型迭代器*/
 typedef struct {
     robj *subject;
     unsigned char encoding;
@@ -1403,12 +1434,14 @@ typedef struct {
 } listTypeIterator;
 
 /* Structure for an entry while iterating over a list. */
+/**链表实例*/
 typedef struct {
     listTypeIterator *li;
     quicklistEntry entry; /* Entry in quicklist */
 } listTypeEntry;
 
 /* Structure to hold set iteration abstraction. */
+/**集合类型迭代器*/
 typedef struct {
     robj *subject;
     int encoding;
@@ -1420,6 +1453,14 @@ typedef struct {
  * hashes involves both fields and values. Because it is possible that
  * not both are required, store pointers in the iterator to avoid
  * unnecessary memory allocation for fields/values. */
+ /**定义hash迭代器结构
+  * subject：
+  * encoding：
+  * fptr：域名指针
+  * vptr：域值指针
+  * di：
+  * de：
+ */
 typedef struct {
     robj *subject;
     int encoding;
@@ -1634,6 +1675,7 @@ int compareStringObjects(robj *a, robj *b);
 int collateStringObjects(robj *a, robj *b);
 int equalStringObjects(robj *a, robj *b);
 unsigned long long estimateObjectIdleTime(robj *o);
+/**编码类型是原始编码或是*/
 #define sdsEncodedObject(objptr) (objptr->encoding == OBJ_ENCODING_RAW || objptr->encoding == OBJ_ENCODING_EMBSTR)
 
 /* Synchronous I/O with timeout */

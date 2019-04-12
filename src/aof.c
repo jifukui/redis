@@ -58,7 +58,11 @@ void aofClosePipes(void);
  * ------------------------------------------------------------------------- */
 
 #define AOF_RW_BUF_BLOCK_SIZE (1024*1024*10)    /* 10 MB per block */
-/***/
+/**aof 重写块数据结构
+ * used:已使用的
+ * free：未使用的
+ * buf：字符串
+*/
 typedef struct aofrwblock {
     unsigned long used, free;
     char buf[AOF_RW_BUF_BLOCK_SIZE];
@@ -97,6 +101,9 @@ unsigned long aofRewriteBufferSize(void)
 /* Event handler used to send data to the child process doing the AOF
  * rewrite. We send pieces of our AOF differences buffer so that the final
  * write when the child finishes the rewrite will be small. */
+/**
+ * 向管道通信写入差异数据
+*/
 void aofChildWriteDiffData(aeEventLoop *el, int fd, void *privdata, int mask) 
 {
     listNode *ln;
@@ -109,18 +116,26 @@ void aofChildWriteDiffData(aeEventLoop *el, int fd, void *privdata, int mask)
 
     while(1) 
     {
+        /**获取链表头*/
         ln = listFirst(server.aof_rewrite_buf_blocks);
+        /**判断*/
         block = ln ? ln->value : NULL;
+        /**如果服务器设置停止发送不同数据的处理或者块为空
+         * 删除此事件
+        */
         if (server.aof_stop_sending_diff || !block) 
         {
-            aeDeleteFileEvent(server.el,server.aof_pipe_write_data_to_child,
-                              AE_WRITABLE);
+            aeDeleteFileEvent(server.el,server.aof_pipe_write_data_to_child,AE_WRITABLE);
             return;
         }
+        /**对于块中有数据的处理
+         * 将数据写入到server.aof_pipe_write_data_to_child中
+         * 如果写失败返回
+         * 如果写成功进行块数据搬移，且设置使用和为使用的数量
+        */
         if (block->used > 0) 
         {
-            nwritten = write(server.aof_pipe_write_data_to_child,
-                             block->buf,block->used);
+            nwritten = write(server.aof_pipe_write_data_to_child,block->buf,block->used);
             if (nwritten <= 0) 
             {
                 return;
@@ -129,6 +144,7 @@ void aofChildWriteDiffData(aeEventLoop *el, int fd, void *privdata, int mask)
             block->used -= nwritten;
             block->free += nwritten;
         }
+        /**对于此块没有使用，删除此节点*/
         if (block->used == 0) 
         {
             listDelNode(server.aof_rewrite_buf_blocks,ln);
@@ -137,16 +153,34 @@ void aofChildWriteDiffData(aeEventLoop *el, int fd, void *privdata, int mask)
 }
 
 /* Append data to the AOF rewrite buffer, allocating new blocks if needed. */
-void aofRewriteBufferAppend(unsigned char *s, unsigned long len) {
+/**
+ * s：为数据指针
+ * len：为需要写的数据的数据长度
+ * 把数据添加到重写块中
+*/
+void aofRewriteBufferAppend(unsigned char *s, unsigned long len) 
+{
+    /**获取链表尾部指向的位置*/
     listNode *ln = listLast(server.aof_rewrite_buf_blocks);
+    /**对于尾部指向的位置不为空的处理*/
     aofrwblock *block = ln ? ln->value : NULL;
-
-    while(len) {
+    /**对于长度不为0的处理*/
+    while(len) 
+    {
         /* If we already got at least an allocated block, try appending
          * at least some piece into it. */
-        if (block) {
+        /**block不为空的处理*/
+        if (block) 
+        {
+            /**获取可添加的字符的数量*/
             unsigned long thislen = (block->free < len) ? block->free : len;
-            if (thislen) {  /* The current block is not already full. */
+            /**对于可添加的数据的数量大于0的处理
+             * 将此字符串添加到可用的字符串的后面
+             * 更新已使用的字节数和未使用的字节数
+             * 更新当前可写的长度
+            */
+            if (thislen) 
+            {  /* The current block is not already full. */
                 memcpy(block->buf+block->used, s, thislen);
                 block->used += thislen;
                 block->free -= thislen;
@@ -154,32 +188,38 @@ void aofRewriteBufferAppend(unsigned char *s, unsigned long len) {
                 len -= thislen;
             }
         }
-
-        if (len) { /* First block to allocate, or need another block. */
+        /**对于字符串中还有数据没写入的处理*/
+        if (len) 
+        { /* First block to allocate, or need another block. */
             int numblocks;
-
+            /**创建block,设置初始化使用数量和未使用数量*/
             block = zmalloc(sizeof(*block));
             block->free = AOF_RW_BUF_BLOCK_SIZE;
             block->used = 0;
+            /**将此块连接到aof_rewrite_buf_blocks块的后面*/
             listAddNodeTail(server.aof_rewrite_buf_blocks,block);
 
             /* Log every time we cross more 10 or 100 blocks, respectively
              * as a notice or warning. */
+            /**获取aof_rewrite_buf_blocks块的数量*/
             numblocks = listLength(server.aof_rewrite_buf_blocks);
-            if (((numblocks+1) % 10) == 0) {
-                int level = ((numblocks+1) % 100) == 0 ? LL_WARNING :
-                                                         LL_NOTICE;
-                serverLog(level,"Background AOF buffer size: %lu MB",
-                    aofRewriteBufferSize()/(1024*1024));
+            /**对于块数量太大进行日志警告*/
+            if (((numblocks+1) % 10) == 0) 
+            {
+                int level = ((numblocks+1) % 100) == 0 ? LL_WARNING :LL_NOTICE;
+                serverLog(level,"Background AOF buffer size: %lu MB",aofRewriteBufferSize()/(1024*1024));
             }
         }
     }
 
     /* Install a file event to send data to the rewrite child if there is
      * not one already. */
-    if (aeGetFileEvents(server.el,server.aof_pipe_write_data_to_child) == 0) {
-        aeCreateFileEvent(server.el, server.aof_pipe_write_data_to_child,
-            AE_WRITABLE, aofChildWriteDiffData, NULL);
+    /**获取文件事件，对于此文件的事件为0的处理
+     * 创建文件事件
+    */
+    if (aeGetFileEvents(server.el,server.aof_pipe_write_data_to_child) == 0) 
+    {
+        aeCreateFileEvent(server.el, server.aof_pipe_write_data_to_child,AE_WRITABLE, aofChildWriteDiffData, NULL);
     }
 }
 
@@ -504,19 +544,23 @@ void flushAppendOnlyFile(int force) {
         server.aof_last_fsync = server.unixtime;
     }
 }
-
-sds catAppendOnlyGenericCommand(sds dst, int argc, robj **argv) {
+/**产生通用命令命令*/
+sds catAppendOnlyGenericCommand(sds dst, int argc, robj **argv) 
+{
     char buf[32];
     int len, j;
     robj *o;
-
+    /**设置buf的第一个值为*的值*/
     buf[0] = '*';
+    /**设置buf[1]处存储argc的值，返回实际使用的长度*/
     len = 1+ll2string(buf+1,sizeof(buf)-1,argc);
     buf[len++] = '\r';
     buf[len++] = '\n';
+    /**获取动态字符串的长度*/
     dst = sdscatlen(dst,buf,len);
-
-    for (j = 0; j < argc; j++) {
+    /***/
+    for (j = 0; j < argc; j++) 
+    {
         o = getDecodedObject(argv[j]);
         buf[0] = '$';
         len = 1+ll2string(buf+1,sizeof(buf)-1,sdslen(o->ptr));
@@ -537,56 +581,86 @@ sds catAppendOnlyGenericCommand(sds dst, int argc, robj **argv) {
  * This command is used in order to translate EXPIRE and PEXPIRE commands
  * into PEXPIREAT command so that we retain precision in the append only
  * file, and the time is always absolute and not relative. */
-sds catAppendOnlyExpireAtCommand(sds buf, struct redisCommand *cmd, robj *key, robj *seconds) {
+/***对于失效相关命令的处理
+ * buf：动态的命令字符串
+ * cmd：命令
+ * key：命令参数
+ * seconds：执行时间
+ * 用于产生失效命令字符串
+*/
+sds catAppendOnlyExpireAtCommand(sds buf, struct redisCommand *cmd, robj *key, robj *seconds) 
+{
     long long when;
     robj *argv[3];
 
     /* Make sure we can use strtoll */
+    /**获取时间*/
     seconds = getDecodedObject(seconds);
+    /**将对象转换为整数*/
     when = strtoll(seconds->ptr,NULL,10);
     /* Convert argument into milliseconds for EXPIRE, SETEX, EXPIREAT */
-    if (cmd->proc == expireCommand || cmd->proc == setexCommand ||
-        cmd->proc == expireatCommand)
+    /**对于是这些命令设置when的值乘以1000*/
+    if (cmd->proc == expireCommand || cmd->proc == setexCommand ||cmd->proc == expireatCommand)
     {
         when *= 1000;
     }
     /* Convert into absolute time for EXPIRE, PEXPIRE, SETEX, PSETEX */
-    if (cmd->proc == expireCommand || cmd->proc == pexpireCommand ||
-        cmd->proc == setexCommand || cmd->proc == psetexCommand)
+    /**对于这些命令设置when的值加上当前时间为毫秒值*/
+    if (cmd->proc == expireCommand || cmd->proc == pexpireCommand ||cmd->proc == setexCommand || cmd->proc == psetexCommand)
     {
         when += mstime();
     }
+    /**设置seconds的引用值减一*/
     decrRefCount(seconds);
-
+    /**设置argv[0]的值为此字符串*/
     argv[0] = createStringObject("PEXPIREAT",9);
+    /**设置argv[1]的值为键对象*/
     argv[1] = key;
+    /**设置argv[2]的值为触发时间*/
     argv[2] = createStringObjectFromLongLong(when);
+    /**产生命令字符串*/
     buf = catAppendOnlyGenericCommand(buf, 3, argv);
     decrRefCount(argv[0]);
     decrRefCount(argv[2]);
     return buf;
 }
-
-void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int argc) {
+/**将产生的命令写入重写块中并将此数据传输给子程序
+ * cmd：命令
+ * dictid：数据库ID
+ * argv:参数列表
+ * argc：参数数量
+*/
+void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int argc) 
+{
+    /**创建一个空的动态字符串*/
     sds buf = sdsempty();
     robj *tmpargv[3];
 
     /* The DB this command was targeting is not the same as the last command
      * we appended. To issue a SELECT command is needed. */
-    if (dictid != server.aof_selected_db) {
+    /**对于传入的字典id不等于服务器aof选择的数据库处理
+     * 设置aof选择的数据库为传入的数据库
+    */
+    if (dictid != server.aof_selected_db) 
+    {
         char seldb[64];
 
         snprintf(seldb,sizeof(seldb),"%d",dictid);
-        buf = sdscatprintf(buf,"*2\r\n$6\r\nSELECT\r\n$%lu\r\n%s\r\n",
-            (unsigned long)strlen(seldb),seldb);
+        buf = sdscatprintf(buf,"*2\r\n$6\r\nSELECT\r\n$%lu\r\n%s\r\n",(unsigned long)strlen(seldb),seldb);
         server.aof_selected_db = dictid;
     }
-
-    if (cmd->proc == expireCommand || cmd->proc == pexpireCommand ||
-        cmd->proc == expireatCommand) {
+    /**对于处理命令为失效等命令的处理*/
+    if (cmd->proc == expireCommand || cmd->proc == pexpireCommand ||cmd->proc == expireatCommand) 
+    {
         /* Translate EXPIRE/PEXPIRE/EXPIREAT into PEXPIREAT */
+        /**产生失效的命令*/
         buf = catAppendOnlyExpireAtCommand(buf,cmd,argv[1],argv[2]);
-    } else if (cmd->proc == setexCommand || cmd->proc == psetexCommand) {
+    } 
+    /**对于命令是设置和预设值的处理
+     * 先生成通用的设置命令在产生失效命令
+    */
+    else if (cmd->proc == setexCommand || cmd->proc == psetexCommand) 
+    {
         /* Translate SETEX/PSETEX to SET and PEXPIREAT */
         tmpargv[0] = createStringObject("SET",3);
         tmpargv[1] = argv[1];
@@ -594,23 +668,40 @@ void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int a
         buf = catAppendOnlyGenericCommand(buf,3,tmpargv);
         decrRefCount(tmpargv[0]);
         buf = catAppendOnlyExpireAtCommand(buf,cmd,argv[1],argv[2]);
-    } else if (cmd->proc == setCommand && argc > 3) {
+    } 
+    /**对于命令是setCommand且参数的数量大于3的处理
+     * 先产生通用命令，在产生失效的命令
+    */
+    else if (cmd->proc == setCommand && argc > 3) 
+    {
         int i;
         robj *exarg = NULL, *pxarg = NULL;
         /* Translate SET [EX seconds][PX milliseconds] to SET and PEXPIREAT */
         buf = catAppendOnlyGenericCommand(buf,3,argv);
-        for (i = 3; i < argc; i ++) {
-            if (!strcasecmp(argv[i]->ptr, "ex")) exarg = argv[i+1];
-            if (!strcasecmp(argv[i]->ptr, "px")) pxarg = argv[i+1];
+        for (i = 3; i < argc; i ++) 
+        {
+            if (!strcasecmp(argv[i]->ptr, "ex")) 
+            {
+                exarg = argv[i+1];
+            }
+            if (!strcasecmp(argv[i]->ptr, "px")) 
+            {
+                pxarg = argv[i+1];
+            }
         }
         serverAssert(!(exarg && pxarg));
         if (exarg)
-            buf = catAppendOnlyExpireAtCommand(buf,server.expireCommand,argv[1],
-                                               exarg);
+        {
+            buf = catAppendOnlyExpireAtCommand(buf,server.expireCommand,argv[1],exarg);
+        }
         if (pxarg)
-            buf = catAppendOnlyExpireAtCommand(buf,server.pexpireCommand,argv[1],
-                                               pxarg);
-    } else {
+        {
+            buf = catAppendOnlyExpireAtCommand(buf,server.pexpireCommand,argv[1],pxarg);
+        }
+    } 
+    /**对于其他命令产生通用命令*/
+    else 
+    {
         /* All the other commands don't need translation or need the
          * same translation already operated in the command vector
          * for the replication itself. */
@@ -620,15 +711,23 @@ void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int a
     /* Append to the AOF buffer. This will be flushed on disk just before
      * of re-entering the event loop, so before the client will get a
      * positive reply about the operation performed. */
+    /**对于aof的状态为打开的 处理
+     * 设置buf添加到aof_buf后面
+    */
     if (server.aof_state == AOF_ON)
+    {
         server.aof_buf = sdscatlen(server.aof_buf,buf,sdslen(buf));
+    }
 
     /* If a background append only file rewriting is in progress we want to
      * accumulate the differences between the child DB and the current one
      * in a buffer, so that when the child process will do its work we
      * can append the differences to the new append only file. */
+    /**对于aof_child_pid存在的处理，将此数据添加到重写块中，并创建此文件事件*/
     if (server.aof_child_pid != -1)
+    {
         aofRewriteBufferAppend((unsigned char*)buf,sdslen(buf));
+    }
 
     sdsfree(buf);
 }

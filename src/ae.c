@@ -172,7 +172,7 @@ void aeStop(aeEventLoop *eventLoop)
  * eventLoop：事件环
  * fd：文件描述符
  * mask:事件标志掩码
- * proc：
+ * proc：事件处理函数
  * clientdata：用户数据
 */
 int aeCreateFileEvent(aeEventLoop *eventLoop, 

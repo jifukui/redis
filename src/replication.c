@@ -170,7 +170,9 @@ void feedReplicationBacklogWithObject(robj *o) {
  * the commands received by our clients in order to create the replication
  * stream. Instead if the instance is a slave and has sub-slaves attached,
  * we use replicationFeedSlavesFromMaster() */
-void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
+/***/
+void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) 
+{
     listNode *ln;
     listIter li;
     int j, len;
@@ -181,23 +183,42 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
      * propagate *identical* replication stream. In this way this slave can
      * advertise the same replication ID as the master (since it shares the
      * master replication history and has the same backlog and offsets). */
-    if (server.masterhost != NULL) return;
+    /**对于不是顶层主机的处理
+     * 返回
+    */
+    if (server.masterhost != NULL) 
+    {
+        return;
+    }
 
     /* If there aren't slaves, and there is no backlog buffer to populate,
      * we can return ASAP. */
-    if (server.repl_backlog == NULL && listLength(slaves) == 0) return;
+    /**对于没有从机且没有repl_backlog的处理*/
+    if (server.repl_backlog == NULL && listLength(slaves) == 0) 
+    {
+        return;
+    }
 
     /* We can't have slaves attached and no backlog. */
+    /**对于没有repl_backlog的处理退出*/
     serverAssert(!(listLength(slaves) != 0 && server.repl_backlog == NULL));
 
     /* Send SELECT command to every slave if needed. */
-    if (server.slaveseldb != dictid) {
+    /**对于子机操作的数据库id不是传入的数据库id的处理*/
+    if (server.slaveseldb != dictid) 
+    {
         robj *selectcmd;
 
         /* For a few DBs we have pre-computed SELECT command. */
-        if (dictid >= 0 && dictid < PROTO_SHARED_SELECT_CMDS) {
+        /**对于在传入的数据库id在0~9即共享的数据库
+         * 设置选择命令为shared.select[dictid]
+        */
+        if (dictid >= 0 && dictid < PROTO_SHARED_SELECT_CMDS) 
+        {
             selectcmd = shared.select[dictid];
-        } else {
+        } 
+        else 
+        {
             int dictid_len;
 
             dictid_len = ll2string(llstr,sizeof(llstr),dictid);
@@ -208,23 +229,33 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
         }
 
         /* Add the SELECT command into the backlog. */
-        if (server.repl_backlog) feedReplicationBacklogWithObject(selectcmd);
+        if (server.repl_backlog) 
+        {
+            feedReplicationBacklogWithObject(selectcmd);
+        }
 
         /* Send it to slaves. */
         listRewind(slaves,&li);
-        while((ln = listNext(&li))) {
+        while((ln = listNext(&li))) 
+        {
             client *slave = ln->value;
-            if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) continue;
+            if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) 
+            {
+                continue;
+            }
             addReply(slave,selectcmd);
         }
 
         if (dictid < 0 || dictid >= PROTO_SHARED_SELECT_CMDS)
+        {
             decrRefCount(selectcmd);
+        }
     }
     server.slaveseldb = dictid;
 
     /* Write the command to the replication backlog if any. */
-    if (server.repl_backlog) {
+    if (server.repl_backlog) 
+    {
         char aux[LONG_STR_SIZE+3];
 
         /* Add the multi bulk reply length. */
@@ -234,7 +265,8 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
         aux[len+2] = '\n';
         feedReplicationBacklog(aux,len+3);
 
-        for (j = 0; j < argc; j++) {
+        for (j = 0; j < argc; j++) 
+        {
             long objlen = stringObjectLen(argv[j]);
 
             /* We need to feed the buffer with the object as a bulk reply
@@ -252,11 +284,15 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
 
     /* Write the command to every slave. */
     listRewind(slaves,&li);
-    while((ln = listNext(&li))) {
+    while((ln = listNext(&li))) 
+    {
         client *slave = ln->value;
 
         /* Don't feed slaves that are still waiting for BGSAVE to start */
-        if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) continue;
+        if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) 
+        {
+            continue;
+        }
 
         /* Feed slaves that are waiting for the initial SYNC (so these commands
          * are queued in the output buffer until the initial SYNC completes),
@@ -268,7 +304,9 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
         /* Finally any additional argument that was not stored inside the
          * static buffer if any (from j to argc). */
         for (j = 0; j < argc; j++)
+        {
             addReplyBulk(slave,argv[j]);
+        }
     }
 }
 

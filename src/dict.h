@@ -45,7 +45,7 @@
 #define DICT_NOTUSED(V) ((void) V)
 /**字典实例
  * key:键值
- * v:值联合体
+ * v:失效时间
  * next：下一个字典对象
 */
 typedef struct dictEntry {
@@ -165,7 +165,7 @@ typedef void (dictScanBucketFunction)(void *privdata, dictEntry **bucketref);
 #define dictHashKey(d, key) (d)->type->hashFunction(key)
 /***/
 #define dictGetKey(he) ((he)->key)
-/***/
+/**获取字典的值*/
 #define dictGetVal(he) ((he)->v.val)
 /***/
 #define dictGetSignedIntegerVal(he) ((he)->v.s64)
@@ -175,7 +175,7 @@ typedef void (dictScanBucketFunction)(void *privdata, dictEntry **bucketref);
 #define dictGetDoubleVal(he) ((he)->v.d)
 /***/
 #define dictSlots(d) ((d)->ht[0].size+(d)->ht[1].size)
-/***/
+/**返回字典中条目的数量*/
 #define dictSize(d) ((d)->ht[0].used+(d)->ht[1].used)
 /**返回字典是否重新散列过*/
 #define dictIsRehashing(d) ((d)->rehashidx != -1)

@@ -1114,16 +1114,26 @@ void setExpire(client *c, redisDb *db, robj *key, long long when) {
 
 /* Return the expire time of the specified key, or -1 if no expire
  * is associated with this key (i.e. the key is non volatile) */
-long long getExpire(redisDb *db, robj *key) {
+/**获取失效时间*/
+long long getExpire(redisDb *db, robj *key) 
+{
     dictEntry *de;
 
     /* No expire? return ASAP */
-    if (dictSize(db->expires) == 0 ||
-       (de = dictFind(db->expires,key->ptr)) == NULL) return -1;
+    /**判断失效字典的实例是否为0或者没有找到对应键
+     * 返回-1
+    */
+    if (dictSize(db->expires) == 0 ||de = dictFind(db->expires,key->ptr)) == NULL) 
+    {
+        return -1;
+    }
 
     /* The entry was found in the expire dict, this means it should also
      * be present in the main dict (safety check). */
     serverAssertWithInfo(NULL,key,dictFind(db->dict,key->ptr) != NULL);
+    /**对于找到实例的处理
+     * 获取失效时间
+    */
     return dictGetSignedIntegerVal(de);
 }
 
@@ -1135,16 +1145,24 @@ long long getExpire(redisDb *db, robj *key) {
  * AOF and the master->slave link guarantee operation ordering, everything
  * will be consistent even if we allow write operations against expiring
  * keys. */
-void propagateExpire(redisDb *db, robj *key, int lazy) {
+void propagateExpire(redisDb *db, robj *key, int lazy) 
+{
     robj *argv[2];
-
+    /**根据传入的值设置是否慢删除*/
     argv[0] = lazy ? shared.unlink : shared.del;
+    /**存储键值*/
     argv[1] = key;
+    /**设置对象的引用值加1*/
     incrRefCount(argv[0]);
     incrRefCount(argv[1]);
-
+    /**判断服务器的aof状态是否关闭
+     * 对于不关闭调用feedAppendOnlyFile函数
+     * 将命令写入到重写块中并传输给子程序
+    */
     if (server.aof_state != AOF_OFF)
+    {
         feedAppendOnlyFile(server.delCommand,db->id,argv,2);
+    }
     replicationFeedSlaves(server.slaves,db->id,argv,2);
 
     decrRefCount(argv[0]);
@@ -1152,21 +1170,35 @@ void propagateExpire(redisDb *db, robj *key, int lazy) {
 }
 
 /* Check if the key is expired. */
-int keyIsExpired(redisDb *db, robj *key) {
+/**检测键是否已经失效
+ * 0未失效
+ * 1失效
+*/
+int keyIsExpired(redisDb *db, robj *key) 
+{
+    /**获取失效时间*/
     mstime_t when = getExpire(db,key);
-
-    if (when < 0) return 0; /* No expire for this key */
+    /**对于此键未失效的处理*/
+    if (when < 0)  /* No expire for this key */
+    {
+        return 0;
+    }
 
     /* Don't expire anything while loading. It will be done later. */
-    if (server.loading) return 0;
+    /**当服务器处于加载状态暂时不处理*/
+    if (server.loading) 
+    {
+        return 0;
+    }
 
     /* If we are in the context of a Lua script, we pretend that time is
      * blocked to when the Lua script started. This way a key can expire
      * only the first time it is accessed and not in the middle of the
      * script execution, making propagation to slaves / AOF consistent.
      * See issue #1525 on Github for more information. */
+    /**获取当前时间*/
     mstime_t now = server.lua_caller ? server.lua_time_start : mstime();
-
+    /**判断是否失效*/
     return now > when;
 }
 
@@ -1189,8 +1221,16 @@ int keyIsExpired(redisDb *db, robj *key) {
  *
  * The return value of the function is 0 if the key is still valid,
  * otherwise the function returns 1 if the key is expired. */
-int expireIfNeeded(redisDb *db, robj *key) {
-    if (!keyIsExpired(db,key)) return 0;
+/***/
+int expireIfNeeded(redisDb *db, robj *key) 
+{   
+    /**判断此键是否已经失效
+     * 对于未失效直接退出
+    */
+    if (!keyIsExpired(db,key)) 
+    {
+        return 0;
+    }
 
     /* If we are running in the context of a slave, instead of
      * evicting the expired key from the database, we return ASAP:
@@ -1200,15 +1240,21 @@ int expireIfNeeded(redisDb *db, robj *key) {
      * Still we try to return the right information to the caller,
      * that is, 0 if we think the key should be still valid, 1 if
      * we think the key is expired at this time. */
-    if (server.masterhost != NULL) return 1;
+    /***/
+    if (server.masterhost != NULL) 
+    {
+        return 1;
+    }
 
     /* Delete the key */
+    /***/
     server.stat_expiredkeys++;
+    /***/
     propagateExpire(db,key,server.lazyfree_lazy_expire);
-    notifyKeyspaceEvent(NOTIFY_EXPIRED,
-        "expired",key,db->id);
-    return server.lazyfree_lazy_expire ? dbAsyncDelete(db,key) :
-                                         dbSyncDelete(db,key);
+    /***/
+    notifyKeyspaceEvent(NOTIFY_EXPIRED,"expired",key,db->id);
+    /**根据是否延迟释放调用异步删除或者是同步删除*/
+    return server.lazyfree_lazy_expire ? dbAsyncDelete(db,key) :dbSyncDelete(db,key);
 }
 
 /* -----------------------------------------------------------------------------

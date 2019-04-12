@@ -47,7 +47,7 @@ robj *createObject(int type, void *ptr)
     robj *o = zmalloc(sizeof(*o));
     /**设置对象类型*/
     o->type = type;
-    /**设置对象编码类型*/
+    /**设置对象编码类型，原始字符串*/
     o->encoding = OBJ_ENCODING_RAW;
     /***/
     o->ptr = ptr;
@@ -89,7 +89,8 @@ robj *makeObjectShared(robj *o)
 
 /* Create a string object with encoding OBJ_ENCODING_RAW, that is a plain
  * string object where o->ptr points to a proper sds string. */
-/**创建字符串对象*/
+/**对于编码类型是原始字符串的处理
+ * 创建原始字符串对象*/
 robj *createRawStringObject(const char *ptr, size_t len) 
 {
     return createObject(OBJ_STRING, sdsnewlen(ptr,len));
@@ -98,13 +99,14 @@ robj *createRawStringObject(const char *ptr, size_t len)
 /* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
  * an object where the sds string is actually an unmodifiable string
  * allocated in the same chunk as the object itself. */
-/**创建字符串*/
+/**创建字符串嵌入动态字符串的字符串的处理*/
 robj *createEmbeddedStringObject(const char *ptr, size_t len) 
 {
     robj *o = zmalloc(sizeof(robj)+sizeof(struct sdshdr8)+len+1);
     struct sdshdr8 *sh = (void*)(o+1);
-
+    /**设置对象类型*/
     o->type = OBJ_STRING;
+    /**设置编码类型*/
     o->encoding = OBJ_ENCODING_EMBSTR;
     o->ptr = sh+1;
     o->refcount = 1;
@@ -146,10 +148,12 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len)
 /**创建字符串对象*/
 robj *createStringObject(const char *ptr, size_t len) 
 {
+    /**创建*/
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
     {
         return createEmbeddedStringObject(ptr,len);
     }
+    /**创建原始的字符串*/
     else
     {
         return createRawStringObject(ptr,len);
@@ -541,6 +545,9 @@ robj *tryObjectEncoding(robj *o)
     /* We try some specialized encoding only for objects that are
      * RAW or EMBSTR encoded, in other words objects that are still
      * in represented by an actually array of chars. */
+    /**对于对象类型不是原始字符串和动态字符串的处理
+     * 返回此对象
+    */
     if (!sdsEncodedObject(o)) 
     {
         return o;
@@ -549,6 +556,7 @@ robj *tryObjectEncoding(robj *o)
     /* It's not safe to encode shared objects: shared objects can be shared
      * everywhere in the "object space" of Redis and may end in places where
      * they are not handled. We handle them only as values in the keyspace. */
+     /**对于此对象的引用次数大于1返回此对象*/
      if (o->refcount > 1) 
      {
          return o;
@@ -557,17 +565,17 @@ robj *tryObjectEncoding(robj *o)
     /* Check if we can represent this string as a long integer.
      * Note that we are sure that a string larger than 20 chars is not
      * representable as a 32 nor 64 bit integer. */
+    /**获取此对象的长度*/
     len = sdslen(s);
+    /**对于长度小于等于20且可以转换为长整型数的处理*/
     if (len <= 20 && string2l(s,len,&value)) 
     {
         /* This object is encodable as a long. Try to use a shared object.
          * Note that we avoid using shared integers when maxmemory is used
          * because every object needs to have a private LRU field for the LRU
          * algorithm to work well. */
-        if ((server.maxmemory == 0 ||
-            !(server.maxmemory_policy & MAXMEMORY_FLAG_NO_SHARED_INTEGERS)) &&
-            value >= 0 &&
-            value < OBJ_SHARED_INTEGERS)
+        /***/
+        if ((server.maxmemory == 0 ||!(server.maxmemory_policy & MAXMEMORY_FLAG_NO_SHARED_INTEGERS)) &&value >= 0 &&value < OBJ_SHARED_INTEGERS)
         {
             decrRefCount(o);
             incrRefCount(shared.integers[value]);
@@ -622,20 +630,26 @@ robj *tryObjectEncoding(robj *o)
 
 /* Get a decoded version of an encoded object (returned as a new object).
  * If the object is already raw-encoded just increment the ref count. */
-/***/
+/**对于对象的编码方式是原始字符串或者是动态字符串的处理是返回此对象
+ * 对于对象类型是字符串且是编码类型是整型获取其值并创建为对象
+*/
 robj *getDecodedObject(robj *o) 
 {
     robj *dec;
-
+    /**对于对象的编码方式为原始字符串和嵌入动态字符串的字符串的处理
+     * 设置对象的引用值加一
+     * 返回
+    */
     if (sdsEncodedObject(o)) 
     {
         incrRefCount(o);
         return o;
     }
+    /**对于对象的类型是字符串且编码类型为整数类型的处理*/
     if (o->type == OBJ_STRING && o->encoding == OBJ_ENCODING_INT) 
     {
         char buf[32];
-
+        /**转换数据，并将此数据创建为字符串对象并返回此对象*/
         ll2string(buf,32,(long)o->ptr);
         dec = createStringObject(buf,strlen(buf));
         return dec;
