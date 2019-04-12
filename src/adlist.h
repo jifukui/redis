@@ -32,18 +32,32 @@
 #define __ADLIST_H__
 
 /* Node, List, and Iterator are the only data structures used currently. */
-
+/**双向链表节点结构
+ * prev：前指针
+ * next：后指针
+ * value：参数值
+*/
 typedef struct listNode {
     struct listNode *prev;
     struct listNode *next;
     void *value;
 } listNode;
-
+/**链表迭代器结构
+ * next：下一个节点
+ * direction：迭代方向
+*/
 typedef struct listIter {
     listNode *next;
     int direction;
 } listIter;
-
+/**链表结构
+ * head：
+ * tail：
+ * dup:
+ * free:
+ * match:
+ * len：
+*/
 typedef struct list {
     listNode *head;
     listNode *tail;
@@ -54,19 +68,30 @@ typedef struct list {
 } list;
 
 /* Functions implemented as macros */
+/**获取链表的长度*/
 #define listLength(l) ((l)->len)
+/**获取链表头节点*/
 #define listFirst(l) ((l)->head)
+/**获取链表尾节点*/
 #define listLast(l) ((l)->tail)
+/**获取节点的上一个节点*/
 #define listPrevNode(n) ((n)->prev)
+/**获取节点的下一个节点*/
 #define listNextNode(n) ((n)->next)
+/**获取节点的值*/
 #define listNodeValue(n) ((n)->value)
-
+/**节点复制*/
 #define listSetDupMethod(l,m) ((l)->dup = (m))
+/**节点释放*/
 #define listSetFreeMethod(l,m) ((l)->free = (m))
+/**节点匹配*/
 #define listSetMatchMethod(l,m) ((l)->match = (m))
 
+/**获取节点复制函数*/
 #define listGetDupMethod(l) ((l)->dup)
+/**获取节点释放函数*/
 #define listGetFree(l) ((l)->free)
+/**获取节点匹配函数*/
 #define listGetMatchMethod(l) ((l)->match)
 
 /* Prototypes */

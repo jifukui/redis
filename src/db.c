@@ -43,7 +43,8 @@ int keyIsExpired(redisDb *db, robj *key);
 /* Update LFU when an object is accessed.
  * Firstly, decrement the counter if the decrement time is reached.
  * Then logarithmically increment the counter, and update the access time. */
-void updateLFU(robj *val) {
+void updateLFU(robj *val) 
+{
     unsigned long counter = LFUDecrAndReturn(val);
     counter = LFULogIncr(counter);
     val->lru = (LFUGetTimeInMinutes()<<8) | counter;
@@ -52,9 +53,11 @@ void updateLFU(robj *val) {
 /* Low level key lookup API, not actually called directly from commands
  * implementations that should instead rely on lookupKeyRead(),
  * lookupKeyWrite() and lookupKeyReadWithFlags(). */
-robj *lookupKey(redisDb *db, robj *key, int flags) {
+robj *lookupKey(redisDb *db, robj *key, int flags) 
+{
     dictEntry *de = dictFind(db->dict,key->ptr);
-    if (de) {
+    if (de) 
+    {
         robj *val = dictGetVal(de);
 
         /* Update the access time for the ageing algorithm.
@@ -64,14 +67,19 @@ robj *lookupKey(redisDb *db, robj *key, int flags) {
             server.aof_child_pid == -1 &&
             !(flags & LOOKUP_NOTOUCH))
         {
-            if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
+            if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) 
+            {
                 updateLFU(val);
-            } else {
+            } 
+            else 
+            {
                 val->lru = LRU_CLOCK();
             }
         }
         return val;
-    } else {
+    } 
+    else 
+    {
         return NULL;
     }
 }
@@ -97,14 +105,17 @@ robj *lookupKey(redisDb *db, robj *key, int flags) {
  * for read operations. Even if the key expiry is master-driven, we can
  * correctly report a key is expired on slaves even if the master is lagging
  * expiring our key via DELs in the replication link. */
-robj *lookupKeyReadWithFlags(redisDb *db, robj *key, int flags) {
+robj *lookupKeyReadWithFlags(redisDb *db, robj *key, int flags) 
+{
     robj *val;
 
-    if (expireIfNeeded(db,key) == 1) {
+    if (expireIfNeeded(db,key) == 1) 
+    {
         /* Key expired. If we are in the context of a master, expireIfNeeded()
          * returns 0 only when the key does not exist at all, so it's safe
          * to return NULL ASAP. */
-        if (server.masterhost == NULL) {
+        if (server.masterhost == NULL) 
+        {
             server.stat_keyspace_misses++;
             return NULL;
         }
@@ -132,15 +143,20 @@ robj *lookupKeyReadWithFlags(redisDb *db, robj *key, int flags) {
     }
     val = lookupKey(db,key,flags);
     if (val == NULL)
+    {
         server.stat_keyspace_misses++;
+    }
     else
+    {
         server.stat_keyspace_hits++;
+    }
     return val;
 }
 
 /* Like lookupKeyReadWithFlags(), but does not use any flag, which is the
  * common case. */
-robj *lookupKeyRead(redisDb *db, robj *key) {
+robj *lookupKeyRead(redisDb *db, robj *key) 
+{
     return lookupKeyReadWithFlags(db,key,LOOKUP_NONE);
 }
 
@@ -149,20 +165,29 @@ robj *lookupKeyRead(redisDb *db, robj *key) {
  *
  * Returns the linked value object if the key exists or NULL if the key
  * does not exist in the specified DB. */
-robj *lookupKeyWrite(redisDb *db, robj *key) {
+robj *lookupKeyWrite(redisDb *db, robj *key) 
+{
     expireIfNeeded(db,key);
     return lookupKey(db,key,LOOKUP_NONE);
 }
 
-robj *lookupKeyReadOrReply(client *c, robj *key, robj *reply) {
+robj *lookupKeyReadOrReply(client *c, robj *key, robj *reply) 
+{
     robj *o = lookupKeyRead(c->db, key);
-    if (!o) addReply(c,reply);
+    if (!o) 
+    {
+        addReply(c,reply);
+    }
     return o;
 }
 
-robj *lookupKeyWriteOrReply(client *c, robj *key, robj *reply) {
+robj *lookupKeyWriteOrReply(client *c, robj *key, robj *reply) 
+{
     robj *o = lookupKeyWrite(c->db, key);
-    if (!o) addReply(c,reply);
+    if (!o) 
+    {
+        addReply(c,reply);
+    }
     return o;
 }
 
@@ -1504,7 +1529,8 @@ void slotToKeyFlush(void) {
 /* Pupulate the specified array of objects with keys in the specified slot.
  * New objects are returned to represent keys, it's up to the caller to
  * decrement the reference count to release the keys names. */
-unsigned int getKeysInSlot(unsigned int hashslot, robj **keys, unsigned int count) {
+unsigned int getKeysInSlot(unsigned int hashslot, robj **keys, unsigned int count) 
+{
     raxIterator iter;
     int j = 0;
     unsigned char indexed[2];
@@ -1513,8 +1539,12 @@ unsigned int getKeysInSlot(unsigned int hashslot, robj **keys, unsigned int coun
     indexed[1] = hashslot & 0xff;
     raxStart(&iter,server.cluster->slots_to_keys);
     raxSeek(&iter,">=",indexed,2);
-    while(count-- && raxNext(&iter)) {
-        if (iter.key[0] != indexed[0] || iter.key[1] != indexed[1]) break;
+    while(count-- && raxNext(&iter)) 
+    {
+        if (iter.key[0] != indexed[0] || iter.key[1] != indexed[1]) 
+        {
+            break;
+        }
         keys[j++] = createStringObject((char*)iter.key+2,iter.key_len-2);
     }
     raxStop(&iter);
@@ -1523,7 +1553,8 @@ unsigned int getKeysInSlot(unsigned int hashslot, robj **keys, unsigned int coun
 
 /* Remove all the keys in the specified hash slot.
  * The number of removed items is returned. */
-unsigned int delKeysInSlot(unsigned int hashslot) {
+unsigned int delKeysInSlot(unsigned int hashslot) 
+{
     raxIterator iter;
     int j = 0;
     unsigned char indexed[2];
@@ -1531,7 +1562,8 @@ unsigned int delKeysInSlot(unsigned int hashslot) {
     indexed[0] = (hashslot >> 8) & 0xff;
     indexed[1] = hashslot & 0xff;
     raxStart(&iter,server.cluster->slots_to_keys);
-    while(server.cluster->slots_keys_count[hashslot]) {
+    while(server.cluster->slots_keys_count[hashslot]) 
+    {
         raxSeek(&iter,">=",indexed,2);
         raxNext(&iter);
 
@@ -1544,6 +1576,7 @@ unsigned int delKeysInSlot(unsigned int hashslot) {
     return j;
 }
 
-unsigned int countKeysInSlot(unsigned int hashslot) {
+unsigned int countKeysInSlot(unsigned int hashslot) 
+{
     return server.cluster->slots_keys_count[hashslot];
 }

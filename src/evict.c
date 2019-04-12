@@ -51,7 +51,8 @@
  * Empty entries have the key pointer set to NULL. */
 #define EVPOOL_SIZE 16
 #define EVPOOL_CACHED_SDS_SIZE 255
-struct evictionPoolEntry {
+struct evictionPoolEntry 
+{
     unsigned long long idle;    /* Object idle time (inverse frequency for LFU) */
     sds key;                    /* Key name. */
     sds cached;                 /* Cached SDS object for key name. */
@@ -67,7 +68,9 @@ static struct evictionPoolEntry *EvictionPoolLRU;
 /* Return the LRU clock, based on the clock resolution. This is a time
  * in a reduced-bits format that can be used to set and check the
  * object->lru field of redisObject structures. */
-unsigned int getLRUClock(void) {
+/***/
+unsigned int getLRUClock(void) 
+{
     return (mstime()/LRU_CLOCK_RESOLUTION) & LRU_CLOCK_MAX;
 }
 
@@ -75,11 +78,15 @@ unsigned int getLRUClock(void) {
  * If the current resolution is lower than the frequency we refresh the
  * LRU clock (as it should be in production servers) we return the
  * precomputed value, otherwise we need to resort to a system call. */
-unsigned int LRU_CLOCK(void) {
+unsigned int LRU_CLOCK(void) 
+{
     unsigned int lruclock;
-    if (1000/server.hz <= LRU_CLOCK_RESOLUTION) {
+    if (1000/server.hz <= LRU_CLOCK_RESOLUTION) 
+    {
         atomicGet(server.lruclock,lruclock);
-    } else {
+    } 
+    else 
+    {
         lruclock = getLRUClock();
     }
     return lruclock;

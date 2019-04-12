@@ -199,22 +199,26 @@ static bool	malloc_init_hard(void);
  * Begin miscellaneous support functions.
  */
 
-bool
-malloc_initialized(void) {
+bool malloc_initialized(void) 
+{
 	return (malloc_init_state == malloc_init_initialized);
 }
 
 JEMALLOC_ALWAYS_INLINE bool
-malloc_init_a0(void) {
-	if (unlikely(malloc_init_state == malloc_init_uninitialized)) {
+malloc_init_a0(void) 
+{
+	if (unlikely(malloc_init_state == malloc_init_uninitialized)) 
+	{
 		return malloc_init_hard_a0();
 	}
 	return false;
 }
 
 JEMALLOC_ALWAYS_INLINE bool
-malloc_init(void) {
-	if (unlikely(!malloc_initialized()) && malloc_init_hard()) {
+malloc_init(void) 
+{
+	if (unlikely(!malloc_initialized()) && malloc_init_hard()) 
+	{
 		return true;
 	}
 	return false;
@@ -226,8 +230,10 @@ malloc_init(void) {
  */
 
 static void *
-a0ialloc(size_t size, bool zero, bool is_internal) {
-	if (unlikely(malloc_init_a0())) {
+a0ialloc(size_t size, bool zero, bool is_internal) 
+{
+	if (unlikely(malloc_init_a0())) 
+	{
 		return NULL;
 	}
 
@@ -235,13 +241,13 @@ a0ialloc(size_t size, bool zero, bool is_internal) {
 	    is_internal, arena_get(TSDN_NULL, 0, true), true);
 }
 
-static void
-a0idalloc(void *ptr, bool is_internal) {
+static void a0idalloc(void *ptr, bool is_internal) 
+{
 	idalloctm(TSDN_NULL, ptr, NULL, NULL, is_internal, true);
 }
 
-void *
-a0malloc(size_t size) {
+void * a0malloc(size_t size) 
+{
 	return a0ialloc(size, false, true);
 }
 

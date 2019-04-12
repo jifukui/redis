@@ -36,7 +36,7 @@ It is as simple as:
     % make
 
 You can run a 32 bit Redis binary using:
-
+32位系统下使用的命令
     % make 32bit
 
 After building Redis, it is a good idea to test it using:
@@ -69,7 +69,7 @@ Fixing problems building 32 bit binaries
 If after building Redis with a 32 bit target you need to rebuild it
 with a 64 bit target, or the other way around, you need to perform a
 `make distclean` in the root directory of the Redis distribution.
-
+使用 make distclean删除当前产生的文件
 In case of build errors when trying to build a 32 bit binary of Redis, try
 the following steps:
 
@@ -85,7 +85,7 @@ the `MALLOC` environment variable. Redis is compiled and linked against libc
 malloc by default, with the exception of jemalloc being the default on Linux
 systems. This default was picked because jemalloc has proven to have fewer
 fragmentation problems than libc malloc.
-
+设置使用malloc的函数
 To force compiling against libc malloc, use:
 
     % make MALLOC=libc

@@ -83,10 +83,12 @@ struct __attribute__ ((__packed__)) sdshdr64 {
 #define SDS_HDR_VAR(T,s) struct sdshdr##T *sh = (void*)((s)-(sizeof(struct sdshdr##T)));
 #define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
 #define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
-
-static inline size_t sdslen(const sds s) {
+/**返回字符串长度*/
+static inline size_t sdslen(const sds s) 
+{
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
+    switch(flags&SDS_TYPE_MASK) 
+    {
         case SDS_TYPE_5:
             return SDS_TYPE_5_LEN(flags);
         case SDS_TYPE_8:
@@ -100,36 +102,46 @@ static inline size_t sdslen(const sds s) {
     }
     return 0;
 }
-
-static inline size_t sdsavail(const sds s) {
+/**返回字符串可用空间*/
+static inline size_t sdsavail(const sds s) 
+{
+    /**获取字符串标记*/
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
-        case SDS_TYPE_5: {
+    switch(flags&SDS_TYPE_MASK) 
+    {
+        case SDS_TYPE_5: 
+        {
             return 0;
         }
-        case SDS_TYPE_8: {
+        case SDS_TYPE_8: 
+        {
             SDS_HDR_VAR(8,s);
             return sh->alloc - sh->len;
         }
-        case SDS_TYPE_16: {
+        case SDS_TYPE_16: 
+        {
             SDS_HDR_VAR(16,s);
             return sh->alloc - sh->len;
         }
-        case SDS_TYPE_32: {
+        case SDS_TYPE_32: 
+        {
             SDS_HDR_VAR(32,s);
             return sh->alloc - sh->len;
         }
-        case SDS_TYPE_64: {
+        case SDS_TYPE_64: 
+        {
             SDS_HDR_VAR(64,s);
             return sh->alloc - sh->len;
         }
     }
     return 0;
 }
-
-static inline void sdssetlen(sds s, size_t newlen) {
+/**设置字符串的长度*/
+static inline void sdssetlen(sds s, size_t newlen) 
+{
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
+    switch(flags&SDS_TYPE_MASK) 
+    {
         case SDS_TYPE_5:
             {
                 unsigned char *fp = ((unsigned char*)s)-1;
@@ -150,10 +162,12 @@ static inline void sdssetlen(sds s, size_t newlen) {
             break;
     }
 }
-
-static inline void sdsinclen(sds s, size_t inc) {
+/***/
+static inline void sdsinclen(sds s, size_t inc) 
+{
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
+    switch(flags&SDS_TYPE_MASK) 
+    {
         case SDS_TYPE_5:
             {
                 unsigned char *fp = ((unsigned char*)s)-1;
@@ -177,9 +191,12 @@ static inline void sdsinclen(sds s, size_t inc) {
 }
 
 /* sdsalloc() = sdsavail() + sdslen() */
-static inline size_t sdsalloc(const sds s) {
+/**返回为此字符串分配的空间大小*/
+static inline size_t sdsalloc(const sds s) 
+{
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
+    switch(flags&SDS_TYPE_MASK) 
+    {
         case SDS_TYPE_5:
             return SDS_TYPE_5_LEN(flags);
         case SDS_TYPE_8:
@@ -193,10 +210,12 @@ static inline size_t sdsalloc(const sds s) {
     }
     return 0;
 }
-
-static inline void sdssetalloc(sds s, size_t newlen) {
+/**设置字符串分配空间的大小*/
+static inline void sdssetalloc(sds s, size_t newlen) 
+{
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
+    switch(flags&SDS_TYPE_MASK) 
+    {
         case SDS_TYPE_5:
             /* Nothing to do, this type has no total allocation info. */
             break;

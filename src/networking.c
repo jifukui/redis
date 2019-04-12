@@ -38,16 +38,19 @@ static void setProtocolError(const char *errstr, client *c);
 /* Return the size consumed from the allocator, for the specified SDS string,
  * including internal fragmentation. This function is used in order to compute
  * the client output buffer size. */
-size_t sdsZmallocSize(sds s) {
+size_t sdsZmallocSize(sds s) 
+{
     void *sh = sdsAllocPtr(s);
     return zmalloc_size(sh);
 }
 
 /* Return the amount of memory used by the sds string at object->ptr
  * for a string object. */
-size_t getStringObjectSdsUsedMemory(robj *o) {
+size_t getStringObjectSdsUsedMemory(robj *o) 
+{
     serverAssertWithInfo(NULL,o,o->type == OBJ_STRING);
-    switch(o->encoding) {
+    switch(o->encoding) 
+    {
     case OBJ_ENCODING_RAW: return sdsZmallocSize(o->ptr);
     case OBJ_ENCODING_EMBSTR: return zmalloc_size(o)-sizeof(robj);
     default: return 0; /* Just integer encoding for now. */
@@ -55,24 +58,28 @@ size_t getStringObjectSdsUsedMemory(robj *o) {
 }
 
 /* Client.reply list dup and free methods. */
-void *dupClientReplyValue(void *o) {
+void *dupClientReplyValue(void *o) 
+{
     clientReplyBlock *old = o;
     clientReplyBlock *buf = zmalloc(sizeof(clientReplyBlock) + old->size);
     memcpy(buf, o, sizeof(clientReplyBlock) + old->size);
     return buf;
 }
 
-void freeClientReplyValue(void *o) {
+void freeClientReplyValue(void *o) 
+{
     zfree(o);
 }
 
-int listMatchObjects(void *a, void *b) {
+int listMatchObjects(void *a, void *b) 
+{
     return equalStringObjects(a,b);
 }
 
 /* This function links the client to the global linked list of clients.
  * unlinkClient() does the opposite, among other things. */
-void linkClient(client *c) {
+void linkClient(client *c) 
+{
     listAddNodeTail(server.clients,c);
     /* Note that we remember the linked list node where the client is stored,
      * this way removing the client in unlinkClient() will not require
@@ -81,21 +88,30 @@ void linkClient(client *c) {
     uint64_t id = htonu64(c->id);
     raxInsert(server.clients_index,(unsigned char*)&id,sizeof(id),c,NULL);
 }
-
-client *createClient(int fd) {
+/**创建用户*/
+client *createClient(int fd) 
+{
+    /**为用户对象申请内存空间*/
     client *c = zmalloc(sizeof(client));
 
     /* passing -1 as fd it is possible to create a non connected client.
      * This is useful since all the commands needs to be executed
      * in the context of a client. When commands are executed in other
      * contexts (for instance a Lua script) we need a non connected client. */
-    if (fd != -1) {
+    /**对于socket值为-1的（非连接的用户）处理*/
+    if (fd != -1) 
+    {
+        /**设置fd为非阻塞*/
         anetNonBlock(NULL,fd);
+        /**设置tcp使用nagle算法*/
         anetEnableTcpNoDelay(NULL,fd);
+        /**对于服务器设置保持活跃状态设置socket保持活跃撞他*/
         if (server.tcpkeepalive)
+        {
             anetKeepAlive(NULL,fd,server.tcpkeepalive);
-        if (aeCreateFileEvent(server.el,fd,AE_READABLE,
-            readQueryFromClient, c) == AE_ERR)
+        }
+        /***/
+        if (aeCreateFileEvent(server.el,fd,AE_READABLE,readQueryFromClient, c) == AE_ERR)
         {
             close(fd);
             zfree(c);

@@ -600,6 +600,13 @@ typedef struct RedisModuleDigest {
 #define LRU_CLOCK_RESOLUTION 1000 /* LRU clock resolution in ms */
 
 #define OBJ_SHARED_REFCOUNT INT_MAX
+/**第一redis数据结构
+ * type：类型占4bit
+ * encoding：编码类型占4bit
+ * lru：4位访问时间4位访问频率16位
+ * refcont：引用次数
+ * prt：数据指针
+*/
 typedef struct redisObject {
     unsigned type:4;
     unsigned encoding:4;
@@ -633,6 +640,9 @@ typedef struct clientReplyBlock {
 /* Redis database representation. There are multiple databases identified
  * by integers from 0 (the default database) up to the max configured
  * database. The database number is the 'id' field in the structure. */
+/**数据库对象
+ * 
+*/
 typedef struct redisDb {
     dict *dict;                 /* The keyspace for this DB */
     dict *expires;              /* Timeout of keys with a timeout set */
@@ -663,6 +673,7 @@ typedef struct multiState {
 
 /* This structure holds the blocking operation state for a client.
  * The fields used depend on client->btype. */
+/***/
 typedef struct blockingState {
     /* Generic fields. */
     mstime_t timeout;       /* Blocking operation timeout. If UNIX current time
@@ -702,6 +713,7 @@ typedef struct blockingState {
  * also called ready_keys in every structure representing a Redis database,
  * where we make sure to remember if a given key was already added in the
  * server.ready_keys list. */
+/***/
 typedef struct readyList {
     redisDb *db;
     robj *key;
@@ -709,6 +721,32 @@ typedef struct readyList {
 
 /* With multiplexing we need to take per-client state.
  * Clients are taken in a linked list. */
+/**用户对象
+ * id：用户id
+ * fd：用户socket值
+ * db：使用的数据库
+ * name：数据库名称
+ * querybuf：查询字符串
+ * querybuf_peak：最近（100ms）查询字符串的峰值
+ * argc：命令数量
+ * argv：命令
+ * cmd：
+ * lastcmd
+ * reqtype
+ * multibulklen
+ * bulklen
+ * reply
+ * reply_bytes
+ * sentlen
+ * ctime
+ * lastinteraction
+ * obuf_soft_limit_reached_time
+ * flags
+ * authenticated
+ * replstate
+ * repl_put_online_on_ack
+ * repldbfd
+*/
 typedef struct client {
     uint64_t id;            /* Client incremental unique ID. */
     int fd;                 /* Client socket. */
@@ -767,18 +805,18 @@ typedef struct client {
     int bufpos;
     char buf[PROTO_REPLY_CHUNK_BYTES];
 } client;
-
+/***/
 struct saveparam {
     time_t seconds;
     int changes;
 };
-
+/***/
 struct moduleLoadQueueEntry {
     sds path;
     int argc;
     robj **argv;
 };
-
+/****/
 struct sharedObjectsStruct {
     robj *crlf, *ok, *err, *emptybulk, *czero, *cone, *cnegone, *pong, *space,
     *colon, *nullbulk, *nullmultibulk, *queued,
@@ -925,7 +963,39 @@ struct clusterState;
 #define CHILD_INFO_MAGIC 0xC17DDA7A12345678LL
 #define CHILD_INFO_TYPE_RDB 0
 #define CHILD_INFO_TYPE_AOF 1
-
+/**服务器对象
+ * pid：主进程的ID
+ * configfile：配置文件绝对路径
+ * executable：可执行文件的绝对路径
+ * exec_argv：可执行文件传参的参数
+ * dynamic_hz：动态设置的serverCron程序的频率
+ * config_hz：配置的运行serverCron程序的频率
+ * hz：serverCron程序运行频率
+ * db:数据库对象
+ * commands：命令表
+ * orig_commands：原始命令表
+ * el
+ * lruclock
+ * shutdown_asap
+ * activerehashing
+ * active_defrag_running
+ * requirepass
+ * pidfile
+ * arch_bits:系统架构long的字节长度
+ * cronloops
+ * runid
+ * sentinel_mode
+ * initial_memory_usage
+ * always_show_logo
+ * moduleapi
+ * loadmodule_queue
+ * module_blocked_pipe
+ * port：TCP监听的端口号
+ * tcp_backlog
+ * bindaddr
+ * bindaddr_count
+ * unixsocket
+*/
 struct redisServer {
     /* General */
     pid_t pid;                  /* Main process pid. */

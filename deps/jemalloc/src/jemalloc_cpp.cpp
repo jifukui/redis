@@ -40,11 +40,12 @@ void	operator delete[](void *ptr, std::size_t size) noexcept;
 #endif
 
 JEMALLOC_NOINLINE
-static void *
-handleOOM(std::size_t size, bool nothrow) {
+static void * handleOOM(std::size_t size, bool nothrow) 
+{
 	void *ptr = nullptr;
 
-	while (ptr == nullptr) {
+	while (ptr == nullptr) 
+	{
 		std::new_handler handler;
 		// GCC-4.8 and clang 4.0 do not have std::get_new_handler.
 		{
@@ -55,11 +56,15 @@ handleOOM(std::size_t size, bool nothrow) {
 			std::set_new_handler(handler);
 		}
 		if (handler == nullptr)
+		{
 			break;
+		}
 
-		try {
+		try 
+		{
 			handler();
-		} catch (const std::bad_alloc &) {
+		} catch (const std::bad_alloc &) 
+		{
 			break;
 		}
 
@@ -67,72 +72,80 @@ handleOOM(std::size_t size, bool nothrow) {
 	}
 
 	if (ptr == nullptr && !nothrow)
+	{
 		std::__throw_bad_alloc();
+	}
 	return ptr;
 }
 
 template <bool IsNoExcept>
 JEMALLOC_ALWAYS_INLINE
-void *
-newImpl(std::size_t size) noexcept(IsNoExcept) {
+void * newImpl(std::size_t size) noexcept(IsNoExcept) 
+{
 	void *ptr = je_malloc(size);
 	if (likely(ptr != nullptr))
+	{
 		return ptr;
+	}
 
 	return handleOOM(size, IsNoExcept);
 }
 
-void *
-operator new(std::size_t size) {
+void *operator new(std::size_t size) 
+{
 	return newImpl<false>(size);
 }
 
-void *
-operator new[](std::size_t size) {
+void *operator new[](std::size_t size) 
+{
 	return newImpl<false>(size);
 }
 
-void *
-operator new(std::size_t size, const std::nothrow_t &) noexcept {
+void *operator new(std::size_t size, const std::nothrow_t &) noexcept 
+{
 	return newImpl<true>(size);
 }
 
-void *
-operator new[](std::size_t size, const std::nothrow_t &) noexcept {
+void *operator new[](std::size_t size, const std::nothrow_t &) noexcept 
+{
 	return newImpl<true>(size);
 }
 
-void
-operator delete(void *ptr) noexcept {
+void operator delete(void *ptr) noexcept 
+{
 	je_free(ptr);
 }
 
-void
-operator delete[](void *ptr) noexcept {
+void operator delete[](void *ptr) noexcept 
+{
 	je_free(ptr);
 }
 
-void
-operator delete(void *ptr, const std::nothrow_t &) noexcept {
+void operator delete(void *ptr, const std::nothrow_t &) noexcept 
+{
 	je_free(ptr);
 }
 
-void operator delete[](void *ptr, const std::nothrow_t &) noexcept {
+void operator delete[](void *ptr, const std::nothrow_t &) noexcept 
+{
 	je_free(ptr);
 }
 
 #if __cpp_sized_deallocation >= 201309
 
-void
-operator delete(void *ptr, std::size_t size) noexcept {
-	if (unlikely(ptr == nullptr)) {
+void operator delete(void *ptr, std::size_t size) noexcept 
+{
+	if (unlikely(ptr == nullptr)) 
+	{
 		return;
 	}
 	je_sdallocx(ptr, size, /*flags=*/0);
 }
 
-void operator delete[](void *ptr, std::size_t size) noexcept {
-	if (unlikely(ptr == nullptr)) {
+void operator delete[](void *ptr, std::size_t size) noexcept 
+{
+	if (unlikely(ptr == nullptr)) 
+	{
 		return;
 	}
 	je_sdallocx(ptr, size, /*flags=*/0);

@@ -36,7 +36,9 @@
  * for instance to free results obtained by backtrace_symbols(). We need
  * to define this function before including zmalloc.h that may shadow the
  * free implementation if we use jemalloc or another non standard allocator. */
-void zlibc_free(void *ptr) {
+/**释放动态分配的内存*/
+void zlibc_free(void *ptr) 
+{
     free(ptr);
 }
 
@@ -57,11 +59,13 @@ void zlibc_free(void *ptr) {
 #endif
 
 /* Explicitly override malloc/free etc when using tcmalloc. */
+/**对于定义USE_TCMALLOC设置malloc calloc realloc free函数的定义*/
 #if defined(USE_TCMALLOC)
 #define malloc(size) tc_malloc(size)
 #define calloc(count,size) tc_calloc(count,size)
 #define realloc(ptr,size) tc_realloc(ptr,size)
 #define free(ptr) tc_free(ptr)
+/**对于定义USE_JEMALLOC设置malloc calloc realloc free mallocx dallocx函数的定义*/
 #elif defined(USE_JEMALLOC)
 #define malloc(size) je_malloc(size)
 #define calloc(count,size) je_calloc(count,size)
@@ -71,35 +75,46 @@ void zlibc_free(void *ptr) {
 #define dallocx(ptr,flags) je_dallocx(ptr,flags)
 #endif
 
+/**定义更新zmalloc内存申请，这里使用的是c11新添加的函数atomic_add_fetch
+ * 使得此操作为原子操作在used_memory基础上申请这么多内存
+*/
 #define update_zmalloc_stat_alloc(__n) do { \
     size_t _n = (__n); \
     if (_n&(sizeof(long)-1)) _n += sizeof(long)-(_n&(sizeof(long)-1)); \
     atomicIncr(used_memory,__n); \
 } while(0)
-
+/**定义更新zmalloc状态释放，这里使用的是c11新添加的函数atomic_add_fetch
+ * 使得此操作为原子操作在used_memory基础上释放申请的这么多内存
+*/
 #define update_zmalloc_stat_free(__n) do { \
     size_t _n = (__n); \
     if (_n&(sizeof(long)-1)) _n += sizeof(long)-(_n&(sizeof(long)-1)); \
     atomicDecr(used_memory,__n); \
 } while(0)
-
+/**默认使用的内存大小为0*/
 static size_t used_memory = 0;
 pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static void zmalloc_default_oom(size_t size) {
-    fprintf(stderr, "zmalloc: Out of memory trying to allocate %zu bytes\n",
-        size);
+/**对于zmalloc默认内存超界处理*/
+static void zmalloc_default_oom(size_t size) 
+{
+    fprintf(stderr, "zmalloc: Out of memory trying to allocate %zu bytes\n",size);
     fflush(stderr);
     abort();
 }
-
+/**设置zmalloc内存超界处理函数为默认zmalloc内存超界处理函数的处理*/
 static void (*zmalloc_oom_handler)(size_t) = zmalloc_default_oom;
-
-void *zmalloc(size_t size) {
+/**定义zmalloc函数*/
+void *zmalloc(size_t size) 
+{
     void *ptr = malloc(size+PREFIX_SIZE);
 
-    if (!ptr) zmalloc_oom_handler(size);
+    if (!ptr)
+    {
+        zmalloc_oom_handler(size);
+    }
 #ifdef HAVE_MALLOC_SIZE
+    /**如果定义了HAVE_MALLOC_SIZE调用update_zmalloc_stat_alloc函数*/
     update_zmalloc_stat_alloc(zmalloc_size(ptr));
     return ptr;
 #else
@@ -113,24 +128,44 @@ void *zmalloc(size_t size) {
  * and go straight to the allocator arena bins.
  * Currently implemented only for jemalloc. Used for online defragmentation. */
 #ifdef HAVE_DEFRAG
-void *zmalloc_no_tcache(size_t size) {
+/***/
+void *zmalloc_no_tcache(size_t size) 
+{
     void *ptr = mallocx(size+PREFIX_SIZE, MALLOCX_TCACHE_NONE);
-    if (!ptr) zmalloc_oom_handler(size);
+    if (!ptr) 
+    {
+        zmalloc_oom_handler(size);
+    }
     update_zmalloc_stat_alloc(zmalloc_size(ptr));
     return ptr;
 }
 
-void zfree_no_tcache(void *ptr) {
-    if (ptr == NULL) return;
+void zfree_no_tcache(void *ptr) 
+{
+    if (ptr == NULL) 
+    {
+        return;
+    }
     update_zmalloc_stat_free(zmalloc_size(ptr));
     dallocx(ptr, MALLOCX_TCACHE_NONE);
 }
 #endif
-
-void *zcalloc(size_t size) {
+/**内存申请函数*/
+void *zcalloc(size_t size) 
+{
+    /**calloc函数用于申请内存空间，
+     * 第一个参数用于设置分配内存的单位长度
+     * 第二个参数用于设置数据长度
+    */
     void *ptr = calloc(1, size+PREFIX_SIZE);
-
-    if (!ptr) zmalloc_oom_handler(size);
+    /**分配内存失败调用的处理函数*/
+    if (!ptr) 
+    {
+        zmalloc_oom_handler(size);
+    }
+    /**HAVE_MALLOC_SIZE的作用是根据此参数
+     * 设置与定义的大小
+    */
 #ifdef HAVE_MALLOC_SIZE
     update_zmalloc_stat_alloc(zmalloc_size(ptr));
     return ptr;
@@ -140,28 +175,40 @@ void *zcalloc(size_t size) {
     return (char*)ptr+PREFIX_SIZE;
 #endif
 }
-
-void *zrealloc(void *ptr, size_t size) {
+/***/
+void *zrealloc(void *ptr, size_t size) 
+{
 #ifndef HAVE_MALLOC_SIZE
     void *realptr;
 #endif
     size_t oldsize;
     void *newptr;
-
-    if (ptr == NULL) return zmalloc(size);
+    /**传入的指针为空的处理*/
+    if (ptr == NULL) 
+    {
+        return zmalloc(size);
+    }
 #ifdef HAVE_MALLOC_SIZE
     oldsize = zmalloc_size(ptr);
     newptr = realloc(ptr,size);
-    if (!newptr) zmalloc_oom_handler(size);
-
+    /**重新分配内存失败*/
+    if (!newptr) 
+    {
+        zmalloc_oom_handler(size);
+    }
+    /**释放*/
     update_zmalloc_stat_free(oldsize);
+    /**申请*/
     update_zmalloc_stat_alloc(zmalloc_size(newptr));
     return newptr;
 #else
     realptr = (char*)ptr-PREFIX_SIZE;
     oldsize = *((size_t*)realptr);
     newptr = realloc(realptr,size+PREFIX_SIZE);
-    if (!newptr) zmalloc_oom_handler(size);
+    if (!newptr) 
+    {
+        zmalloc_oom_handler(size);
+    }
 
     *((size_t*)newptr) = size;
     update_zmalloc_stat_free(oldsize+PREFIX_SIZE);
@@ -174,26 +221,38 @@ void *zrealloc(void *ptr, size_t size) {
  * malloc itself, given that in that case we store a header with this
  * information as the first bytes of every allocation. */
 #ifndef HAVE_MALLOC_SIZE
-size_t zmalloc_size(void *ptr) {
+size_t zmalloc_size(void *ptr) 
+{
     void *realptr = (char*)ptr-PREFIX_SIZE;
+    /**获取存储此参数值的参数所占的内存空间*/
     size_t size = *((size_t*)realptr);
     /* Assume at least that all the allocations are padded at sizeof(long) by
      * the underlying allocator. */
-    if (size&(sizeof(long)-1)) size += sizeof(long)-(size&(sizeof(long)-1));
+    /**根据内存大小，使得内存字节*/
+    if (size&(sizeof(long)-1)) 
+    {
+        size += sizeof(long)-(size&(sizeof(long)-1));
+    }
+    /**返回内存大小使得8字节对齐*/
     return size+PREFIX_SIZE;
 }
-size_t zmalloc_usable(void *ptr) {
+size_t zmalloc_usable(void *ptr) 
+{
     return zmalloc_size(ptr)-PREFIX_SIZE;
 }
 #endif
-
-void zfree(void *ptr) {
+/**内存释放函数*/
+void zfree(void *ptr) 
+{
 #ifndef HAVE_MALLOC_SIZE
     void *realptr;
     size_t oldsize;
 #endif
 
-    if (ptr == NULL) return;
+    if (ptr == NULL) 
+    {
+        return;
+    }
 #ifdef HAVE_MALLOC_SIZE
     update_zmalloc_stat_free(zmalloc_size(ptr));
     free(ptr);
@@ -204,22 +263,28 @@ void zfree(void *ptr) {
     free(realptr);
 #endif
 }
-
-char *zstrdup(const char *s) {
+/**字符串处理函数
+ * 为传入的字符串申请内存空间
+ * 将原字符串的内容拷贝值目的内存空间
+*/
+char *zstrdup(const char *s) 
+{
     size_t l = strlen(s)+1;
     char *p = zmalloc(l);
 
     memcpy(p,s,l);
     return p;
 }
-
-size_t zmalloc_used_memory(void) {
+/**获取当前使用的内存*/
+size_t zmalloc_used_memory(void) 
+{
     size_t um;
     atomicGet(used_memory,um);
     return um;
 }
-
-void zmalloc_set_oom_handler(void (*oom_handler)(size_t)) {
+/**设置内存超界处理函数*/
+void zmalloc_set_oom_handler(void (*oom_handler)(size_t)) 
+{
     zmalloc_oom_handler = oom_handler;
 }
 
@@ -238,8 +303,9 @@ void zmalloc_set_oom_handler(void (*oom_handler)(size_t)) {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
-size_t zmalloc_get_rss(void) {
+/**从配置表获取相关信息*/
+size_t zmalloc_get_rss(void) 
+{
     int page = sysconf(_SC_PAGESIZE);
     size_t rss;
     char buf[4096];
@@ -248,8 +314,12 @@ size_t zmalloc_get_rss(void) {
     char *p, *x;
 
     snprintf(filename,256,"/proc/%d/stat",getpid());
-    if ((fd = open(filename,O_RDONLY)) == -1) return 0;
-    if (read(fd,buf,4096) <= 0) {
+    if ((fd = open(filename,O_RDONLY)) == -1) 
+    {
+        return 0;
+    }
+    if (read(fd,buf,4096) <= 0) 
+    {
         close(fd);
         return 0;
     }
@@ -257,13 +327,23 @@ size_t zmalloc_get_rss(void) {
 
     p = buf;
     count = 23; /* RSS is the 24th field in /proc/<pid>/stat */
-    while(p && count--) {
+    while(p && count--) 
+    {
         p = strchr(p,' ');
-        if (p) p++;
+        if (p) 
+        {
+            p++;
+        }
     }
-    if (!p) return 0;
+    if (!p) 
+    {
+        return 0;
+    }
     x = strchr(p,' ');
-    if (!x) return 0;
+    if (!x) 
+    {
+        return 0;
+    }
     *x = '\0';
 
     rss = strtoll(p,NULL,10);
@@ -278,20 +358,25 @@ size_t zmalloc_get_rss(void) {
 #include <sys/sysctl.h>
 #include <mach/task.h>
 #include <mach/mach_init.h>
-
-size_t zmalloc_get_rss(void) {
+/***/
+size_t zmalloc_get_rss(void) 
+{
     task_t task = MACH_PORT_NULL;
     struct task_basic_info t_info;
     mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
-
+    /**根据pid获取任务表参数*/
     if (task_for_pid(current_task(), getpid(), &task) != KERN_SUCCESS)
+    {
         return 0;
+    }
+    /**获取任务信息*/
     task_info(task, TASK_BASIC_INFO, (task_info_t)&t_info, &t_info_count);
-
+    /**获取此进程的常驻内存大小*/
     return t_info.resident_size;
 }
 #else
-size_t zmalloc_get_rss(void) {
+size_t zmalloc_get_rss(void) 
+{
     /* If we can't get the RSS in an OS-specific way for this system just
      * return the memory usage we estimated in zmalloc()..
      *
@@ -302,9 +387,16 @@ size_t zmalloc_get_rss(void) {
 #endif
 
 #if defined(USE_JEMALLOC)
+/**对于使用JEMALLOC
+ * 获取内存信息
+ * allocated：已分配的
+ * active：活跃的
+ * resident：常驻的
+*/
 int zmalloc_get_allocator_info(size_t *allocated,
                                size_t *active,
-                               size_t *resident) {
+                               size_t *resident) 
+{
     uint64_t epoch = 1;
     size_t sz;
     *allocated = *resident = *active = 0;
@@ -324,9 +416,11 @@ int zmalloc_get_allocator_info(size_t *allocated,
     return 1;
 }
 #else
+/**获取申请的内存信息*/
 int zmalloc_get_allocator_info(size_t *allocated,
                                size_t *active,
-                               size_t *resident) {
+                               size_t *resident) 
+{
     *allocated = *resident = *active = 0;
     return 1;
 }
@@ -343,25 +437,39 @@ int zmalloc_get_allocator_info(size_t *allocated,
  * Example: zmalloc_get_smap_bytes_by_field("Rss:",-1);
  */
 #if defined(HAVE_PROC_SMAPS)
-size_t zmalloc_get_smap_bytes_by_field(char *field, long pid) {
+/**根据传入的进程id和相关的域名称将域名称的k转换为字节*/
+size_t zmalloc_get_smap_bytes_by_field(char *field, long pid) 
+{
     char line[1024];
     size_t bytes = 0;
     int flen = strlen(field);
     FILE *fp;
-
-    if (pid == -1) {
+    /**如果是当前进程*/
+    if (pid == -1) 
+    {
         fp = fopen("/proc/self/smaps","r");
-    } else {
+    } 
+    /**非当前进程*/
+    else 
+    {
         char filename[128];
         snprintf(filename,sizeof(filename),"/proc/%ld/smaps",pid);
         fp = fopen(filename,"r");
     }
-
-    if (!fp) return 0;
-    while(fgets(line,sizeof(line),fp) != NULL) {
-        if (strncmp(line,field,flen) == 0) {
+    /**文件打开失败*/
+    if (!fp) 
+    {
+        return 0;
+    }
+    /**获取所有行*/
+    while(fgets(line,sizeof(line),fp) != NULL) 
+    {
+        /**获取传入的域名称*/
+        if (strncmp(line,field,flen) == 0) 
+        {
             char *p = strchr(line,'k');
-            if (p) {
+            if (p) 
+            {
                 *p = '\0';
                 bytes += strtol(line+flen,NULL,10) * 1024;
             }
@@ -371,14 +479,17 @@ size_t zmalloc_get_smap_bytes_by_field(char *field, long pid) {
     return bytes;
 }
 #else
-size_t zmalloc_get_smap_bytes_by_field(char *field, long pid) {
+/**根据传入的进程id和相关的域名称将域名称的k转换为字节直接返回失败*/
+size_t zmalloc_get_smap_bytes_by_field(char *field, long pid) 
+{
     ((void) field);
     ((void) pid);
     return 0;
 }
 #endif
 
-size_t zmalloc_get_private_dirty(long pid) {
+size_t zmalloc_get_private_dirty(long pid) 
+{
     return zmalloc_get_smap_bytes_by_field("Private_Dirty:",pid);
 }
 
@@ -395,9 +506,10 @@ size_t zmalloc_get_private_dirty(long pid) {
  * 3) Was modified for Redis by Matt Stancliff.
  * 4) This note exists in order to comply with the original license.
  */
-size_t zmalloc_get_memory_size(void) {
-#if defined(__unix__) || defined(__unix) || defined(unix) || \
-    (defined(__APPLE__) && defined(__MACH__))
+/**获取内存大小*/
+size_t zmalloc_get_memory_size(void) 
+{
+#if defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__))
 #if defined(CTL_HW) && (defined(HW_MEMSIZE) || defined(HW_PHYSMEM64))
     int mib[2];
     mib[0] = CTL_HW;
@@ -409,7 +521,9 @@ size_t zmalloc_get_memory_size(void) {
     int64_t size = 0;               /* 64-bit */
     size_t len = sizeof(size);
     if (sysctl( mib, 2, &size, &len, NULL, 0) == 0)
+    {
         return (size_t)size;
+    }
     return 0L;          /* Failed? */
 
 #elif defined(_SC_PHYS_PAGES) && defined(_SC_PAGESIZE)
@@ -428,7 +542,9 @@ size_t zmalloc_get_memory_size(void) {
     unsigned int size = 0;      /* 32-bit */
     size_t len = sizeof(size);
     if (sysctl(mib, 2, &size, &len, NULL, 0) == 0)
+    {
         return (size_t)size;
+    }
     return 0L;          /* Failed? */
 #else
     return 0L;          /* Unknown method to get the data. */
@@ -440,7 +556,8 @@ size_t zmalloc_get_memory_size(void) {
 
 #ifdef REDIS_TEST
 #define UNUSED(x) ((void)(x))
-int zmalloc_test(int argc, char **argv) {
+int zmalloc_test(int argc, char **argv) 
+{
     void *ptr;
 
     UNUSED(argc);

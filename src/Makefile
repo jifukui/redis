@@ -15,25 +15,31 @@
 release_hdr := $(shell sh -c './mkreleasehdr.sh')
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 uname_M := $(shell sh -c 'uname -m 2>/dev/null || echo not')
+#如果没有设置优化等级设置优化等级为O2
 OPTIMIZATION?=-O2
+#设置依赖的库
 DEPENDENCY_TARGETS=hiredis linenoise lua
 NODEPS:=clean distclean
 
 # Default settings
+#设置默认的标准为c99
 STD=-std=c99 -pedantic -DREDIS_STATIC=''
 ifneq (,$(findstring clang,$(CC)))
 ifneq (,$(findstring FreeBSD,$(uname_S)))
+#对于满足以上2点的使用c11
   STD+=-Wno-c11-extensions
 endif
 endif
 WARN=-Wall -W -Wno-missing-field-initializers
 OPT=$(OPTIMIZATION)
-
+#设置默认安装路径
 PREFIX?=/usr/local
 INSTALL_BIN=$(PREFIX)/bin
 INSTALL=install
 
 # Default allocator defaults to Jemalloc if it's not an ARM
+#设置默认的内存分配函数为libc
+#对于是Linux设置使用jemalloc
 MALLOC=libc
 ifneq ($(uname_M),armv6l)
 ifneq ($(uname_M),armv7l)
@@ -53,6 +59,7 @@ endif
 endif
 
 # Backwards compatibility for selecting an allocator
+#对于USE_TCMALLOC的值为yes使用tcmalloc
 ifeq ($(USE_TCMALLOC),yes)
 	MALLOC=tcmalloc
 endif

@@ -46,7 +46,9 @@
 
 /* Toggle the 16 bit unsigned integer pointed by *p from little endian to
  * big endian */
-void memrev16(void *p) {
+/**将16位数字由小端格式转换为大端格式*/
+void memrev16(void *p) 
+{
     unsigned char *x = p, t;
 
     t = x[0];
@@ -56,7 +58,9 @@ void memrev16(void *p) {
 
 /* Toggle the 32 bit unsigned integer pointed by *p from little endian to
  * big endian */
-void memrev32(void *p) {
+/**将32位数字由小端格式转换为大端格式*/
+void memrev32(void *p) 
+{
     unsigned char *x = p, t;
 
     t = x[0];
@@ -69,7 +73,9 @@ void memrev32(void *p) {
 
 /* Toggle the 64 bit unsigned integer pointed by *p from little endian to
  * big endian */
-void memrev64(void *p) {
+/**将64位数字由小端格式转换为大端格式*/
+void memrev64(void *p) 
+{
     unsigned char *x = p, t;
 
     t = x[0];
@@ -85,18 +91,21 @@ void memrev64(void *p) {
     x[3] = x[4];
     x[4] = t;
 }
-
-uint16_t intrev16(uint16_t v) {
+/**根据传入的值，将传入值的地址的转换为大端格式*/
+uint16_t intrev16(uint16_t v) 
+{
     memrev16(&v);
     return v;
 }
-
-uint32_t intrev32(uint32_t v) {
+/**根据传入的值，将传入值的地址的转换为大端格式*/
+uint32_t intrev32(uint32_t v) 
+{
     memrev32(&v);
     return v;
 }
-
-uint64_t intrev64(uint64_t v) {
+/**根据传入的值，将传入值的地址的转换为大端格式*/
+uint64_t intrev64(uint64_t v) 
+{
     memrev64(&v);
     return v;
 }

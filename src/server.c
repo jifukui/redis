@@ -124,6 +124,7 @@ volatile unsigned long lru_clock; /* Server global current LRU time. */
  *    Note that commands that may trigger a DEL as a side effect (like SET)
  *    are not fast commands.
  */
+/**redis命令表*/
 struct redisCommand redisCommandTable[] = {
     {"module",moduleCommand,-2,"as",0,NULL,0,0,0,0,0},
     {"get",getCommand,2,"rF",0,NULL,1,1,1,0,0},
@@ -335,7 +336,9 @@ void nolocks_localtime(struct tm *tmp, time_t t, time_t tz, int dst);
 
 /* Low level logging. To use only for very big messages, otherwise
  * serverLog() is to prefer. */
-void serverLogRaw(int level, const char *msg) {
+/****/
+void serverLogRaw(int level, const char *msg) 
+{
     const int syslogLevelMap[] = { LOG_DEBUG, LOG_INFO, LOG_NOTICE, LOG_WARNING };
     const char *c = ".-*#";
     FILE *fp;
@@ -344,7 +347,10 @@ void serverLogRaw(int level, const char *msg) {
     int log_to_stdout = server.logfile[0] == '\0';
 
     level &= 0xff; /* clear flags */
-    if (level < server.verbosity) return;
+    if (level < server.verbosity) 
+    {
+        return;
+    }
 
     fp = log_to_stdout ? stdout : fopen(server.logfile,"a");
     if (!fp) return;
@@ -812,7 +818,11 @@ long long getInstantaneousMetric(int metric) {
  * The function gets the current time in milliseconds as argument since
  * it gets called multiple times in a loop, so calling gettimeofday() for
  * each iteration would be costly without any actual gain. */
-int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
+/**检测用户是否超时
+ * 返回1表示用户退出
+*/
+int clientsCronHandleTimeout(client *c, mstime_t now_ms) 
+{
     time_t now = now_ms/1000;
 
     if (server.maxidletime &&
@@ -825,20 +835,27 @@ int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
         serverLog(LL_VERBOSE,"Closing idle client");
         freeClient(c);
         return 1;
-    } else if (c->flags & CLIENT_BLOCKED) {
+    } 
+    else if (c->flags & CLIENT_BLOCKED) 
+    {
         /* Blocked OPS timeout is handled with milliseconds resolution.
          * However note that the actual resolution is limited by
          * server.hz. */
 
-        if (c->bpop.timeout != 0 && c->bpop.timeout < now_ms) {
+        if (c->bpop.timeout != 0 && c->bpop.timeout < now_ms) 
+        {
             /* Handle blocking operation specific timeout. */
             replyToBlockedClientTimedOut(c);
             unblockClient(c);
-        } else if (server.cluster_enabled) {
+        } 
+        else if (server.cluster_enabled) 
+        {
             /* Cluster: handle unblock & redirect of clients blocked
              * into keys no longer served by this server. */
             if (clusterRedirectBlockedClientIfNeeded(c))
+            {
                 unblockClient(c);
+            }
         }
     }
     return 0;
@@ -959,7 +976,8 @@ void getExpansiveClientsInfo(size_t *in_usage, size_t *out_usage) {
  * of clients per second, turning this function into a source of latency.
  */
 #define CLIENTS_CRON_MIN_ITERATIONS 5
-void clientsCron(void) {
+void clientsCron(void) 
+{
     /* Try to process at least numclients/server.hz of clients
      * per call. Since normally (if there are no big latency events) this
      * function is called server.hz times per second, in the average case we
@@ -972,10 +990,13 @@ void clientsCron(void) {
      * to process less than CLIENTS_CRON_MIN_ITERATIONS to meet our contract
      * of processing each client once per second. */
     if (iterations < CLIENTS_CRON_MIN_ITERATIONS)
+    {
         iterations = (numclients < CLIENTS_CRON_MIN_ITERATIONS) ?
                      numclients : CLIENTS_CRON_MIN_ITERATIONS;
+    }
 
-    while(listLength(server.clients) && iterations--) {
+    while(listLength(server.clients) && iterations--) 
+    {
         client *c;
         listNode *head;
 
@@ -988,9 +1009,19 @@ void clientsCron(void) {
         /* The following functions do different service checks on the client.
          * The protocol is that they return non-zero if the client was
          * terminated. */
-        if (clientsCronHandleTimeout(c,now)) continue;
-        if (clientsCronResizeQueryBuffer(c)) continue;
-        if (clientsCronTrackExpansiveClients(c)) continue;
+        /**超时处理*/
+        if (clientsCronHandleTimeout(c,now)) 
+        {
+            continue;
+        }
+        if (clientsCronResizeQueryBuffer(c)) 
+        {
+            continue;
+        }
+        if (clientsCronTrackExpansiveClients(c)) 
+        {
+            continue;
+        }
     }
 }
 
@@ -3999,32 +4030,52 @@ int redisIsSupervised(int mode) {
     return 0;
 }
 
-
+/**服务器主函数*/
 int main(int argc, char **argv) {
     struct timeval tv;
     int j;
 
 #ifdef REDIS_TEST
-    if (argc == 3 && !strcasecmp(argv[1], "test")) {
-        if (!strcasecmp(argv[2], "ziplist")) {
+    if (argc == 3 && !strcasecmp(argv[1], "test")) 
+    {
+        if (!strcasecmp(argv[2], "ziplist")) 
+        {
             return ziplistTest(argc, argv);
-        } else if (!strcasecmp(argv[2], "quicklist")) {
+        } 
+        else if (!strcasecmp(argv[2], "quicklist")) 
+        {
             quicklistTest(argc, argv);
-        } else if (!strcasecmp(argv[2], "intset")) {
+        } 
+        else if (!strcasecmp(argv[2], "intset")) 
+        {
             return intsetTest(argc, argv);
-        } else if (!strcasecmp(argv[2], "zipmap")) {
+        } 
+        else if (!strcasecmp(argv[2], "zipmap")) 
+        {
             return zipmapTest(argc, argv);
-        } else if (!strcasecmp(argv[2], "sha1test")) {
+        } 
+        else if (!strcasecmp(argv[2], "sha1test")) 
+        {
             return sha1Test(argc, argv);
-        } else if (!strcasecmp(argv[2], "util")) {
+        } 
+        else if (!strcasecmp(argv[2], "util")) 
+        {
             return utilTest(argc, argv);
-        } else if (!strcasecmp(argv[2], "sds")) {
+        } 
+        else if (!strcasecmp(argv[2], "sds")) 
+        {
             return sdsTest(argc, argv);
-        } else if (!strcasecmp(argv[2], "endianconv")) {
+        } 
+        else if (!strcasecmp(argv[2], "endianconv")) 
+        {
             return endianconvTest(argc, argv);
-        } else if (!strcasecmp(argv[2], "crc64")) {
+        } 
+        else if (!strcasecmp(argv[2], "crc64")) 
+        {
             return crc64Test(argc, argv);
-        } else if (!strcasecmp(argv[2], "zmalloc")) {
+        } 
+        else if (!strcasecmp(argv[2], "zmalloc")) 
+        {
             return zmalloc_test(argc, argv);
         }
 
@@ -4054,12 +4105,16 @@ int main(int argc, char **argv) {
     server.executable = getAbsolutePath(argv[0]);
     server.exec_argv = zmalloc(sizeof(char*)*(argc+1));
     server.exec_argv[argc] = NULL;
-    for (j = 0; j < argc; j++) server.exec_argv[j] = zstrdup(argv[j]);
+    for (j = 0; j < argc; j++) 
+    {
+        server.exec_argv[j] = zstrdup(argv[j]);
+    }
 
     /* We need to init sentinel right now as parsing the configuration file
      * in sentinel mode will have the effect of populating the sentinel
      * data structures with master nodes to monitor. */
-    if (server.sentinel_mode) {
+    if (server.sentinel_mode) 
+    {
         initSentinelConfig();
         initSentinel();
     }
@@ -4068,25 +4123,37 @@ int main(int argc, char **argv) {
      * the program main. However the program is part of the Redis executable
      * so that we can easily execute an RDB check on loading errors. */
     if (strstr(argv[0],"redis-check-rdb") != NULL)
+    {
         redis_check_rdb_main(argc,argv,NULL);
+    }
     else if (strstr(argv[0],"redis-check-aof") != NULL)
+    {
         redis_check_aof_main(argc,argv);
-
-    if (argc >= 2) {
+    }
+    if (argc >= 2) 
+    {
         j = 1; /* First option to parse in argv[] */
         sds options = sdsempty();
         char *configfile = NULL;
 
         /* Handle special options --help and --version */
-        if (strcmp(argv[1], "-v") == 0 ||
-            strcmp(argv[1], "--version") == 0) version();
-        if (strcmp(argv[1], "--help") == 0 ||
-            strcmp(argv[1], "-h") == 0) usage();
-        if (strcmp(argv[1], "--test-memory") == 0) {
-            if (argc == 3) {
+        if (strcmp(argv[1], "-v") == 0 ||strcmp(argv[1], "--version") == 0) 
+        {
+            version();
+        }
+        if (strcmp(argv[1], "--help") == 0 ||strcmp(argv[1], "-h") == 0) 
+        {
+            usage();
+        }
+        if (strcmp(argv[1], "--test-memory") == 0) 
+        {
+            if (argc == 3) 
+            {
                 memtest(atoi(argv[2]),50);
                 exit(0);
-            } else {
+            } 
+            else 
+            {
                 fprintf(stderr,"Please specify the amount of memory to test in megabytes.\n");
                 fprintf(stderr,"Example: ./redis-server --test-memory 4096\n\n");
                 exit(1);
@@ -4094,7 +4161,8 @@ int main(int argc, char **argv) {
         }
 
         /* First argument is the config file name? */
-        if (argv[j][0] != '-' || argv[j][1] != '-') {
+        if (argv[j][0] != '-' || argv[j][1] != '-') 
+        {
             configfile = argv[j];
             server.configfile = getAbsolutePath(configfile);
             /* Replace the config file in server.exec_argv with
@@ -4108,29 +4176,36 @@ int main(int argc, char **argv) {
          * configuration file. For instance --port 6380 will generate the
          * string "port 6380\n" to be parsed after the actual file name
          * is parsed, if any. */
-        while(j != argc) {
-            if (argv[j][0] == '-' && argv[j][1] == '-') {
+        while(j != argc) 
+        {
+            if (argv[j][0] == '-' && argv[j][1] == '-') 
+            {
                 /* Option name */
-                if (!strcmp(argv[j], "--check-rdb")) {
+                if (!strcmp(argv[j], "--check-rdb")) 
+                {
                     /* Argument has no options, need to skip for parsing. */
                     j++;
                     continue;
                 }
-                if (sdslen(options)) options = sdscat(options,"\n");
+                if (sdslen(options)) 
+                {
+                    options = sdscat(options,"\n");
+                }
                 options = sdscat(options,argv[j]+2);
                 options = sdscat(options," ");
-            } else {
+            } 
+            else 
+            {
                 /* Option argument */
                 options = sdscatrepr(options,argv[j],strlen(argv[j]));
                 options = sdscat(options," ");
             }
             j++;
         }
-        if (server.sentinel_mode && configfile && *configfile == '-') {
-            serverLog(LL_WARNING,
-                "Sentinel config from STDIN not allowed.");
-            serverLog(LL_WARNING,
-                "Sentinel needs config file on disk to save state.  Exiting...");
+        if (server.sentinel_mode && configfile && *configfile == '-') 
+        {
+            serverLog(LL_WARNING,"Sentinel config from STDIN not allowed.");
+            serverLog(LL_WARNING,"Sentinel needs config file on disk to save state.  Exiting...");
             exit(1);
         }
         resetServerSaveParams();
@@ -4147,23 +4222,33 @@ int main(int argc, char **argv) {
             strtol(redisGitDirty(),NULL,10) > 0,
             (int)getpid());
 
-    if (argc == 1) {
+    if (argc == 1) 
+    {
         serverLog(LL_WARNING, "Warning: no config file specified, using the default config. In order to specify a config file use %s /path/to/%s.conf", argv[0], server.sentinel_mode ? "sentinel" : "redis");
-    } else {
+    } 
+    else 
+    {
         serverLog(LL_WARNING, "Configuration loaded");
     }
 
     server.supervised = redisIsSupervised(server.supervised_mode);
     int background = server.daemonize && !server.supervised;
-    if (background) daemonize();
+    if (background) 
+    {
+        daemonize();
+    }
 
     initServer();
-    if (background || server.pidfile) createPidFile();
+    if (background || server.pidfile) 
+    {
+        createPidFile();
+    }
     redisSetProcTitle(argv[0]);
     redisAsciiArt();
     checkTcpBacklogSettings();
 
-    if (!server.sentinel_mode) {
+    if (!server.sentinel_mode) 
+    {
         /* Things not needed when running in Sentinel mode. */
         serverLog(LL_WARNING,"Server initialized");
     #ifdef __linux__
@@ -4171,8 +4256,10 @@ int main(int argc, char **argv) {
     #endif
         moduleLoadFromQueue();
         loadDataFromDisk();
-        if (server.cluster_enabled) {
-            if (verifyClusterConfigWithData() == C_ERR) {
+        if (server.cluster_enabled) 
+        {
+            if (verifyClusterConfigWithData() == C_ERR) 
+            {
                 serverLog(LL_WARNING,
                     "You can't have keys in a DB different than DB 0 when in "
                     "Cluster mode. Exiting.");
@@ -4180,15 +4267,22 @@ int main(int argc, char **argv) {
             }
         }
         if (server.ipfd_count > 0)
+        {
             serverLog(LL_NOTICE,"Ready to accept connections");
+        }
         if (server.sofd > 0)
+        {
             serverLog(LL_NOTICE,"The server is now ready to accept connections at %s", server.unixsocket);
-    } else {
+        }
+    } 
+    else 
+    {
         sentinelIsRunning();
     }
 
     /* Warning the user about suspicious maxmemory setting. */
-    if (server.maxmemory > 0 && server.maxmemory < 1024*1024) {
+    if (server.maxmemory > 0 && server.maxmemory < 1024*1024) 
+    {
         serverLog(LL_WARNING,"WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
     }
 
