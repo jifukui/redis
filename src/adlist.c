@@ -75,8 +75,9 @@ void listEmpty(list *list)
 {
     unsigned long len;
     listNode *current, *next;
-
+    /**当前操作的节点*/
     current = list->head;
+    /**链表的长度*/
     len = list->len;
     while(len--) 
     {
@@ -95,7 +96,7 @@ void listEmpty(list *list)
 /* Free the whole list.
  *
  * This function can't fail. */
-/**释放链表
+/**释放链表，即释放链表的所有申请的空间
  * 设置链表为空链表
  * 释放链表申请的内存空间
 */

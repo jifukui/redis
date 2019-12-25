@@ -61,7 +61,7 @@ static inline int sdsHdrSize(char type)
     }
     return 0;
 }
-/**根据传入的字符串大小返回类型*/
+/**根据传入字符串的大小返回存储这个字符串需要使用的sds的类型*/
 static inline char sdsReqType(size_t string_size) 
 {
     if (string_size < 1<<5)
@@ -100,14 +100,16 @@ static inline char sdsReqType(size_t string_size)
  * You can print the string with printf() as there is an implicit \0 at the
  * end of the string. However the string is binary safe and can contain
  * \0 characters in the middle, as the length is stored in the sds header. */
-/**创建息的字符串
+/**创建字符串
  * init：字符串地址
  * initlen：字符串长度
+ * 柔性数组的使用
 */
 sds sdsnewlen(const void *init, size_t initlen) 
 {
     void *sh;
     sds s;
+    /**字符串类型标记*/
     char type = sdsReqType(initlen);
     /* Empty strings are usually created in order to append. Use type 8
      * since type 5 is not good at this. */
@@ -138,7 +140,10 @@ sds sdsnewlen(const void *init, size_t initlen)
     {
         return NULL;
     }
-    /**主要是获取flag的位置并设置flag的值*/
+    /**这里主要是利用可变数组不占用内存空间
+     * 所以s指向的是字符串的地址
+     * s-1指向的是flag的地址
+    */
     s = (char*)(sh+hdrlen);
     fp = ((unsigned char*)s)-1;
     /**根据传入数据的类型初始化字符串结构体的内容
@@ -271,7 +276,10 @@ void sdsclear(sds s)
  *
  * Note: this does not change the *length* of the sds string as returned
  * by sdslen(), but only the free buffer space we have. */
-/**为字符串增加新的空间*/
+/**传入字符串指针和此字符串的长度
+ * 判断当前字符串的可用长度是否够用并做出响应的处理
+ * 返回字符串的地址
+*/
 sds sdsMakeRoomFor(sds s, size_t addlen) 
 {
     void *sh, *newsh;
@@ -356,7 +364,7 @@ sds sdsMakeRoomFor(sds s, size_t addlen)
  *
  * After the call, the passed sds string is no longer valid and all the
  * references must be substituted with the new pointer returned by the call. */
-/***/
+/**用于释放多余的空间，针对于类型没有改变但是类型不是U8的处理*/
 sds sdsRemoveFreeSpace(sds s) 
 {
     void *sh, *newsh;
@@ -368,9 +376,9 @@ sds sdsRemoveFreeSpace(sds s)
 
     /* Check what would be the minimum SDS header that is just good enough to
      * fit this string. */
-    /**获取类型标志*/
+    /**根据字符串的长度获取类型标志*/
     type = sdsReqType(len);
-    /**获取动态空间大小*/
+    /**获取类型所占空间的大小*/
     hdrlen = sdsHdrSize(type);
 
     /* If the type is the same, or at least a large enough type is still
@@ -517,6 +525,7 @@ void sdsIncrLen(sds s, ssize_t incr)
 /**为字符串增加长度
  * s：为动态字符串对象
  * len：为增加的字符串长度
+ * 将字符串设置为长度为len的填充长度为0的字符串
 */
 sds sdsgrowzero(sds s, size_t len) 
 {
@@ -1542,7 +1551,7 @@ sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen)
 void *sds_malloc(size_t size) { return s_malloc(size); }
 void *sds_realloc(void *ptr, size_t size) { return s_realloc(ptr,size); }
 void sds_free(void *ptr) { s_free(ptr); }
-
+/**一下部分为测试使用*/
 #if defined(SDS_TEST_MAIN)
 #include <stdio.h>
 #include "testhelp.h"

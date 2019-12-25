@@ -113,7 +113,7 @@ void SHA1Transform(uint32_t state[5], const unsigned char buffer[64])
 
 
 /* SHA1Init - Initialize new context */
-
+/**初始化SHA1*/
 void SHA1Init(SHA1_CTX* context)
 {
     /* SHA1 initialization constants */

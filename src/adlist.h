@@ -50,13 +50,13 @@ typedef struct listIter {
     listNode *next;
     int direction;
 } listIter;
-/**链表结构
- * head：
- * tail：
- * dup:
- * free:
- * match:
- * len：
+/**链表结构即函数
+ * head：链表的头
+ * tail：链表的尾
+ * dup:链表的拷贝函数
+ * free:释放链表
+ * match:链表
+ * len：链表的长度
 */
 typedef struct list {
     listNode *head;

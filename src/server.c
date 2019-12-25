@@ -429,7 +429,9 @@ err:
 }
 
 /* Return the UNIX time in microseconds */
-long long ustime(void) {
+/**返回当前时间，时间单位为微秒*/
+long long ustime(void) 
+{
     struct timeval tv;
     long long ust;
 
@@ -440,6 +442,7 @@ long long ustime(void) {
 }
 
 /* Return the UNIX time in milliseconds */
+/**返回当前时间，时间单位为毫秒*/
 mstime_t mstime(void) {
     return ustime()/1000;
 }
@@ -448,7 +451,9 @@ mstime_t mstime(void) {
  * exit(), because the latter may interact with the same file objects used by
  * the parent process. However if we are testing the coverage normal exit() is
  * used in order to obtain the right coverage information. */
-void exitFromChild(int retcode) {
+
+void exitFromChild(int retcode) 
+{
 #ifdef COVERAGE_TEST
     exit(retcode);
 #else
@@ -1028,23 +1033,30 @@ void clientsCron(void)
 /* This function handles 'background' operations we are required to do
  * incrementally in Redis databases, such as active key expiring, resizing,
  * rehashing. */
-void databasesCron(void) {
+void databasesCron(void) 
+{
     /* Expire keys by random sampling. Not required for slaves
      * as master will synthesize DELs for us. */
-    if (server.active_expire_enabled && server.masterhost == NULL) {
+    if (server.active_expire_enabled && server.masterhost == NULL) 
+    {
         activeExpireCycle(ACTIVE_EXPIRE_CYCLE_SLOW);
-    } else if (server.masterhost != NULL) {
+    } 
+    else if (server.masterhost != NULL) 
+    {
         expireSlaveKeys();
     }
 
     /* Defrag keys gradually. */
     if (server.active_defrag_enabled)
+    {
         activeDefragCycle();
+    }
 
     /* Perform hash tables rehashing if needed, but only if there are no
      * other processes saving the DB on disk. Otherwise rehashing is bad
      * as will cause a lot of copy-on-write of memory pages. */
-    if (server.rdb_child_pid == -1 && server.aof_child_pid == -1) {
+    if (server.rdb_child_pid == -1 && server.aof_child_pid == -1) 
+    {
         /* We use global counters so if we stop the computation at a given
          * DB we'll be able to start from the successive in the next
          * cron loop iteration. */
@@ -1054,23 +1066,32 @@ void databasesCron(void) {
         int j;
 
         /* Don't test more DBs than we have. */
-        if (dbs_per_call > server.dbnum) dbs_per_call = server.dbnum;
+        if (dbs_per_call > server.dbnum) 
+        {
+            dbs_per_call = server.dbnum;
+        }
 
         /* Resize */
-        for (j = 0; j < dbs_per_call; j++) {
+        for (j = 0; j < dbs_per_call; j++) 
+        {
             tryResizeHashTables(resize_db % server.dbnum);
             resize_db++;
         }
 
         /* Rehash */
-        if (server.activerehashing) {
-            for (j = 0; j < dbs_per_call; j++) {
+        if (server.activerehashing) 
+        {
+            for (j = 0; j < dbs_per_call; j++) 
+            {
                 int work_done = incrementallyRehash(rehash_db);
-                if (work_done) {
+                if (work_done) 
+                {
                     /* If the function did some work, stop here, we'll do
                      * more at the next cron loop. */
                     break;
-                } else {
+                } 
+                else 
+                {
                     /* If this db didn't need rehash, we'll try the next one. */
                     rehash_db++;
                     rehash_db %= server.dbnum;
@@ -1084,9 +1105,13 @@ void databasesCron(void) {
  * virtual memory and aging there is to store the current time in objects at
  * every object access, and accuracy is not needed. To access a global var is
  * a lot faster than calling time(NULL) */
-void updateCachedTime(void) {
+/**更新缓存时间*/
+void updateCachedTime(void) 
+{
+    /**获取当前的时间，并更新服务器的时间*/
     time_t unixtime = time(NULL);
     atomicSet(server.unixtime,unixtime);
+    /***/
     server.mstime = mstime();
 
     /* To get information about daylight saving time, we need to call localtime_r
@@ -1443,9 +1468,13 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 /* This function is called immadiately after the event loop multiplexing
  * API returned, and the control is going to soon return to Redis by invoking
  * the different events callbacks. */
-void afterSleep(struct aeEventLoop *eventLoop) {
+void afterSleep(struct aeEventLoop *eventLoop) 
+{
     UNUSED(eventLoop);
-    if (moduleCount()) moduleAcquireGIL();
+    if (moduleCount()) 
+    {
+        moduleAcquireGIL();
+    }
 }
 
 /* =========================== Server initialization ======================== */
@@ -1544,14 +1573,15 @@ void createSharedObjects(void) {
     shared.minstring = sdsnew("minstring");
     shared.maxstring = sdsnew("maxstring");
 }
-
-void initServerConfig(void) {
+/**初始化服务器的配置*/
+void initServerConfig(void) 
+{
     int j;
-
+    /***/
     pthread_mutex_init(&server.next_client_id_mutex,NULL);
     pthread_mutex_init(&server.lruclock_mutex,NULL);
     pthread_mutex_init(&server.unixtime_mutex,NULL);
-
+    /***/
     updateCachedTime();
     getRandomHexChars(server.runid,CONFIG_RUN_ID_SIZE);
     server.runid[CONFIG_RUN_ID_SIZE] = '\0';
@@ -1708,7 +1738,9 @@ void initServerConfig(void) {
 
     /* Client output buffer limits */
     for (j = 0; j < CLIENT_TYPE_OBUF_COUNT; j++)
+    {
         server.client_obuf_limits[j] = clientBufferLimitsDefaults[j];
+    }
 
     /* Double constants initialization */
     R_Zero = 0.0;
@@ -4087,10 +4119,14 @@ int main(int argc, char **argv) {
 #ifdef INIT_SETPROCTITLE_REPLACEMENT
     spt_init(argc, argv);
 #endif
+    /***/
     setlocale(LC_COLLATE,"");
+    /***/
     tzset(); /* Populates 'timezone' global. */
+    /***/
     zmalloc_set_oom_handler(redisOutOfMemoryHandler);
     srand(time(NULL)^getpid());
+    /**获取当前时间*/
     gettimeofday(&tv,NULL);
 
     char hashseed[16];

@@ -41,13 +41,20 @@ const char *SDS_NOINIT;
 #include <stdint.h>
 
 typedef char *sds;
-
+/**定义各种动态字符串的结构体*/
 /* Note: sdshdr5 is never used, we just access the flags byte directly.
  * However is here to document the layout of type 5 SDS strings. */
+/**指针不占用内存空间*/
 struct __attribute__ ((__packed__)) sdshdr5 {
     unsigned char flags; /* 3 lsb of type, and 5 msb of string length */
     char buf[];
 };
+/**标准的动态字符串结构
+ * len：已经使用的字符串的长度
+ * alloc：已经分配的字符串存储空间
+ * flags：动态字符串的类型
+ * buf：动态字符串内容
+*/
 struct __attribute__ ((__packed__)) sdshdr8 {
     uint8_t len; /* used */
     uint8_t alloc; /* excluding the header and null terminator */
@@ -136,7 +143,7 @@ static inline size_t sdsavail(const sds s)
     }
     return 0;
 }
-/**设置字符串的长度*/
+/**设置字符串的已用长度*/
 static inline void sdssetlen(sds s, size_t newlen) 
 {
     unsigned char flags = s[-1];
@@ -162,7 +169,7 @@ static inline void sdssetlen(sds s, size_t newlen)
             break;
     }
 }
-/***/
+/**在字符串的已用长度上添加长度更新长度*/
 static inline void sdsinclen(sds s, size_t inc) 
 {
     unsigned char flags = s[-1];
