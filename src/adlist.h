@@ -50,9 +50,9 @@ typedef struct listIter {
     listNode *next;
     int direction;
 } listIter;
-/**链表结构即函数
- * head：链表的头
- * tail：链表的尾
+/**链表结构
+ * head：链表的头节点
+ * tail：链表的尾节点
  * dup:链表的拷贝函数
  * free:释放链表
  * match:链表

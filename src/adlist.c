@@ -55,6 +55,7 @@ list *listCreate(void)
     {
         return NULL;
     }
+    /**初始化链表对象的相关参数*/
     list->head = list->tail = NULL;
     list->len = 0;
     list->dup = NULL;
@@ -79,9 +80,11 @@ void listEmpty(list *list)
     current = list->head;
     /**链表的长度*/
     len = list->len;
+    /**根据链表的长度释放节点数据申请的内存空间*/
     while(len--) 
     {
         next = current->next;
+        /**链表对象的释放函数存在的处理函数*/
         if (list->free) 
         {
             list->free(current->value);
@@ -114,6 +117,7 @@ void listRelease(list *list)
  * On success the 'list' pointer you pass to the function is returned. */
 /**为链表添加头结点
  * 返回链表对象
+ * 在链表的头部插入节点
 */
 list *listAddNodeHead(list *list, void *value)
 {
@@ -157,7 +161,9 @@ list *listAddNodeHead(list *list, void *value)
  * On error, NULL is returned and no operation is performed (i.e. the
  * list remains unaltered).
  * On success the 'list' pointer you pass to the function is returned. */
-/**连表添加尾节点的处理*/
+/**连表添加尾节点的处理
+ * 在链表的尾部插入节点
+*/
 list *listAddNodeTail(list *list, void *value)
 {
     listNode *node;

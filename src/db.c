@@ -1123,7 +1123,7 @@ long long getExpire(redisDb *db, robj *key)
     /**判断失效字典的实例是否为0或者没有找到对应键
      * 返回-1
     */
-    if (dictSize(db->expires) == 0 ||de = dictFind(db->expires,key->ptr)) == NULL) 
+    if (dictSize(db->expires) == 0 ||(de = dictFind(db->expires,key->ptr)) == NULL) 
     {
         return -1;
     }
